@@ -50,8 +50,9 @@ Right-click `run-gui.cmd` → **Run as administrator**.
 
 In the **Pipeline & Limits** panel:
 
-- keep **calibrate** (recommended; ~8–14 reboots + a verification pass), or
-  pick `attribute + calibrate` (+5 probe reboots), `classic search`
+- keep **calibrate** (recommended; 7 levels + verification, ~8–10 reboots,
+  a few more after crash re-runs), or pick `attribute + calibrate`
+  (+5 probe reboots, ~13–15 total), `classic search`
   (~100–200 reboots), or `refine current grid`
 - set the caps: **Max Temp** (°C), **Max Freq** (MHz, 0 = unlimited),
   **Max Offset** (positive-voltage cap), **Safety Margin**

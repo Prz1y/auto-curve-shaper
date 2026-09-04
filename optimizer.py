@@ -14,6 +14,7 @@ from config import (
     ROW_NAMES, COL_NAMES, MAX_REBOOT_ATTEMPTS, MAX_SWEEPS,
     ATTRIBUTION_MAP, ATTRIB_PROBE_ROWS, CALIB_MARGIN, CALIB_OFFSETS,
     CALIB_REGIMES, MAX_TEMP_LIMIT, MAX_FREQ_LIMIT, MAX_VOLTAGE_OFFSET,
+    POST_BOOT_DELAY,
 )
 from state_manager import OptimizationState, RebootManager
 from frequency_monitor import (
@@ -36,6 +37,10 @@ from derive import derive_grid
 CONVERGENCE_DEADBAND = 2
 
 logger = logging.getLogger(__name__)
+
+
+class RebootRequired(RuntimeError):
+    """The staged grid is not live: the machine has not rebooted since staging"""
 
 
 class Optimizer:
@@ -65,9 +70,20 @@ class Optimizer:
 
         # Check if we just rebooted
         if self.state.status == "waiting_reboot":
+            # A staged CurveShaper grid only goes live at the next POST. If
+            # the machine has not actually rebooted since staging (reboot
+            # cancelled, GUI restarted, --continue at a logon without a
+            # reboot), measuring now would record the OLD hardware state
+            # under the NEW offset label — poison for the calibration tables.
+            if not self.reboot_mgr.reboot_happened():
+                raise RebootRequired(
+                    "The staged CurveShaper grid is not live yet — this "
+                    "machine has not rebooted since it was staged. Reboot "
+                    "first (the run auto-continues at logon), or use "
+                    "Reset State to start over.")
             logger.info("Detected post-reboot state, continuing optimization...")
             self.reboot_mgr.after_reboot()
-            time.sleep(5)  # Brief delay after boot
+            time.sleep(POST_BOOT_DELAY)  # let drivers/telemetry settle after boot
 
         # A session that died mid-battery (crash/panic under the staged grid)
         # keeps the "battery_running" status: the windows that never ran are
@@ -85,11 +101,23 @@ class Optimizer:
         try:
             # v1.5 pipeline: attribution experiment and calibration sweep.
             # Each step may raise SystemExit to reboot; when a phase completes
-            # it falls through (or hands over) to the standard loop below.
+            # it hands over to the standard loop below (or reboots itself).
             if self.state.mode == "attribute":
                 self._attribute_step()
             if self.state.mode == "calibrate":
                 self._calibrate_step()
+
+            if self.state.mode in ("attribute", "calibrate"):
+                # Defensive gate: pipeline phases always end by staging a
+                # reboot (SystemExit) or handing over to the standard verify
+                # loop (mode "standard"). Reaching here means a phase returned
+                # without staging — falling through into the classic per-cell
+                # loop would interleave its cell writes with the staged
+                # pipeline grids and poison both runs' data (v1.5.0 bug).
+                raise RuntimeError(
+                    f"pipeline mode '{self.state.mode}' returned without "
+                    "staging the next step — refusing to fall into the "
+                    "classic per-cell loop")
 
             # Final validation, phase B: the converged/derived grid was staged
             # and rebooted in; now actually test it before declaring completion
@@ -194,6 +222,11 @@ class Optimizer:
         Establishes the offset-0 battery first (also the calibration
         baseline), then probes each row and records which regimes respond.
         Regimes the experiment never attributes keep the config default map.
+
+        Every path through this method ends in a reboot (SystemExit) or hands
+        over to the calibration sweep — it must never return while the mode
+        is still "attribute", otherwise run() would fall into the classic
+        per-cell loop and interleave cell writes with the staged probe grids.
         """
         # Phase 1: baseline battery at offset 0
         if not self.state.calib_baseline:
@@ -212,40 +245,66 @@ class Optimizer:
                 self.state.save()
                 logger.info(f"Attribution baseline recorded ({len(self.state.calib_baseline)} windows)")
 
-        # Phase 2: probe rows one at a time
+        # Phase 2: probe rows one at a time (each probe battery runs under its
+        # own staged +30 grid, so the next probe always needs its own reboot)
         if self.state.attributed_map is None:
             self.state.attributed_map = {}
 
-        probe = next((r for r in ATTRIB_PROBE_ROWS if r not in self.state.attrib_rows_done), None)
-        if probe is None:
-            logger.info("=== Attribution experiment complete ===")
-            for regime, row in sorted(self.state.attributed_map.items()):
-                logger.info(f"  {regime:8s} -> {ROW_NAMES[row]} row")
-            self.state.mode = "calibrate"
-            self.state.save()
-            return
+        while True:
+            probe = next((r for r in ATTRIB_PROBE_ROWS if r not in self.state.attrib_rows_done), None)
+            if probe is None:
+                logger.info("=== Attribution experiment complete ===")
+                for regime, row in sorted(self.state.attributed_map.items()):
+                    logger.info(f"  {regime:8s} -> {ROW_NAMES[row]} row")
+                self.state.mode = "calibrate"
+                # The attribution baseline battery IS the offset-0 calibration
+                # data. Mark the level done so the sweep starts at the next
+                # offset — re-measuring 0 would run its battery under the
+                # still-staged probe grid and poison the F-V curve anchor.
+                if 0 not in self.state.calib_offsets_done:
+                    self.state.calib_offsets_done.append(0)
+                self.state.save()
+                return
 
-        if self.state.attrib_probe_row != probe:
-            stage_attribution_grid(probe)
-            self.state.attrib_probe_row = probe
-            self.state.calib_current_offset = 0  # base grid is all-zero + one probed row
-            self.state.save()
-            self._reboot_exit(f"Attribution probe for {ROW_NAMES[probe]} row (+30) staged")
+            if self.state.attrib_probe_row != probe:
+                stage_attribution_grid(probe)
+                self.state.attrib_probe_row = probe
+                self.state.calib_current_offset = 0  # base grid is all-zero + one probed row
+                self.state.save()
+                self._reboot_exit(f"Attribution probe for {ROW_NAMES[probe]} row (+30) staged")
 
-        rows = self._run_battery_session()
-        merged = compute_attribution(self.state.calib_baseline, rows, probe)
-        for regime, row in merged.items():
-            self.state.attributed_map.setdefault(regime, row)
-        self.state.attrib_rows_done.append(probe)
-        self.state.attrib_probe_row = None
-        self.state.save()
+            if self.state.calib_regime_index >= len(CALIB_REGIMES):
+                # crash residue (same handling as the calibration sweep):
+                # the remaining windows were credited unstable on the crashed
+                # boot; re-run the whole battery so this probe holds real data
+                self.state.calib_regime_index = 0
+
+            rows = self._run_battery_session()
+            merged = compute_attribution(self.state.calib_baseline, rows, probe)
+            for regime, row in merged.items():
+                self.state.attributed_map.setdefault(regime, row)
+            self.state.attrib_rows_done.append(probe)
+            self.state.attrib_probe_row = None
+            self.state.save()
 
     def _calibrate_step(self) -> None:
         """Uniform-grid offset sweep: one reboot per level, full battery each"""
         while True:
-            if self.state.calib_current_offset is None:
-                stage_calibration_offset(self.state, CALIB_OFFSETS[0])
-                self._reboot_exit(f"First calibration level ({CALIB_OFFSETS[0]:+d}) staged")
+            done = set(self.state.calib_offsets_done)
+            offset = self.state.calib_current_offset
+
+            if offset is None or offset in done:
+                # Nothing to measure at this level (fresh start, or the
+                # attribution baseline already IS the offset-0 battery).
+                # Stage the next unmeasured level — running a battery here
+                # instead would measure whatever grid is live in hardware,
+                # not this level's.
+                next_offset = next((o for o in CALIB_OFFSETS if o not in done), None)
+                if next_offset is None:
+                    self._finalize_derivation()
+                    return
+                stage_calibration_offset(self.state, next_offset)
+                self._reboot_exit(f"Calibration level {next_offset:+d} staged")
 
             if self.state.calib_regime_index >= len(CALIB_REGIMES):
                 # crash residue: those windows were already credited unstable;
@@ -258,14 +317,6 @@ class Optimizer:
             self.state.save()
             logger.info(f"Calibration level {self.state.calib_current_offset:+d} complete "
                         f"({len(self.state.calib_offsets_done)}/{len(CALIB_OFFSETS)} levels)")
-
-            done = set(self.state.calib_offsets_done)
-            next_offset = next((o for o in CALIB_OFFSETS if o not in done), None)
-            if next_offset is None:
-                self._finalize_derivation()
-                return
-            stage_calibration_offset(self.state, next_offset)
-            self._reboot_exit(f"Calibration level {next_offset:+d} staged")
 
     def _finalize_derivation(self) -> None:
         """Sweep complete: fit boundaries, apply caps, seed verification"""

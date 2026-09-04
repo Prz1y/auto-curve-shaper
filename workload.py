@@ -124,6 +124,25 @@ def _restore_throttle() -> None:
         _throttle_active_pct = 0
 
 
+def ensure_throttle_100() -> None:
+    """Re-assert PROCTHROTTLEMAX=100% unconditionally (battery session start).
+
+    The cap persists in the power plan across reboots: a hard crash during a
+    mid/low window leaves it behind, and the in-process _throttle_active_pct
+    flag of a fresh process cannot see that residue — every later window
+    (including idle/peak of re-run levels) would be measured throttled.
+    """
+    global _throttle_active_pct
+    if _throttle_active_pct:
+        _restore_throttle()
+        return
+    try:
+        set_throttle(100)
+        logger.debug("PROCTHROTTLEMAX re-asserted at 100%")
+    except (WorkloadError, OSError) as e:
+        logger.warning(f"Could not re-assert PROCTHROTTLEMAX=100%: {e}")
+
+
 # ---------------------------------------------------------------------------
 # Regime windows
 # ---------------------------------------------------------------------------

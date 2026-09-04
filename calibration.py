@@ -38,7 +38,7 @@ from frequency_monitor import (
 )
 from temperature_monitor import TemperatureSampler
 from utils import cs_set_grid
-from workload import start_regime
+from workload import ensure_throttle_100, start_regime
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +92,11 @@ def run_battery(state) -> List[dict]:
     Persists progress after every window (state.calib_regime_index) so a
     crash resumes at the aborted window instead of re-running the session.
     """
+    # PROCTHROTTLEMAX persists in the power plan across reboots; a hard crash
+    # during a previous mid/low window can leave the cap behind, and every
+    # window of THIS session (including idle/peak) would be measured throttled
+    ensure_throttle_100()
+
     offset = state.calib_current_offset
     rows: List[dict] = []
 
@@ -126,9 +131,15 @@ def run_battery(state) -> List[dict]:
         post_whea = check_whea_errors(window_start)
 
         freq_max = freq.max_frequency if freq else 0.0
-        stable = bool(freq_max > 0
-                      and post_whea == 0
-                      and stress_stable is not False)
+        if regime in ("allcore", "mid", "low"):
+            # These windows carry the offset's stress verdict as its stability
+            # gate. A missing verdict (workload killed early, no log written)
+            # must fail CLOSED — an unproven level must not enter the tables
+            # as stable.
+            gate_ok = stress_stable is True
+        else:
+            gate_ok = True  # idle/peak windows have no stress workload
+        stable = bool(freq_max > 0 and post_whea == 0 and gate_ok)
 
         row = {
             'offset': offset,

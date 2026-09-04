@@ -5,6 +5,7 @@ State management for reboot persistence
 import json
 import logging
 import os
+import ctypes
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from datetime import datetime
@@ -18,6 +19,18 @@ MAX_STORED_RESULTS = 20
 logger = logging.getLogger(__name__)
 
 
+def _uptime_seconds() -> float:
+    """Seconds since boot (GetTickCount64; includes suspend time).
+
+    A reboot resets the counter, so a current uptime at or above a previously
+    recorded one proves no reboot happened in between.
+    """
+    try:
+        return ctypes.windll.kernel32.GetTickCount64() / 1000.0
+    except Exception:
+        return 0.0
+
+
 @dataclass
 class OptimizationState:
     """State that persists across reboots"""
@@ -25,6 +38,12 @@ class OptimizationState:
     # Current iteration
     iteration: int = 0
     total_reboots: int = 0
+
+    # Uptime (seconds) recorded when the current grid was staged. CS staging
+    # only goes live at the next POST, so run() compares it with the current
+    # uptime: if the machine never rebooted since staging, the staged grid is
+    # NOT live and measuring would record stale hardware data.
+    staged_uptime_s: float = 0.0
     
     # Current grid being tested
     current_grid: List[List[int]] = None  # 5x3 grid
@@ -263,9 +282,14 @@ class OptimizationState:
         """Re-run the per-cell search over the current grid (residual engine).
 
         Seeded from current values (sweep>=2 path), one full pass, converging
-        immediately if nothing moves.
+        immediately if nothing moves. Status and phase are re-opened here: a
+        leftover "completed" status made should_continue() bail out before
+        the loop, turning "refine current grid" into a silent no-op.
         """
         self.mode = "standard"
+        self.status = "running"
+        self.current_phase = "fine_tune"
+        self.error_message = ""
         self.cells_optimized = [(r, c) for r in range(CS_ROWS) for c in range(CS_COLS)]
         self.sweep = 2
         self.sweep_changes = 0
@@ -305,9 +329,21 @@ class RebootManager:
 
         self.state.status = "waiting_reboot"
         self.state.total_reboots += 1
+        self.state.staged_uptime_s = _uptime_seconds()
         self.state.save()
 
         logger.info(f"State saved before reboot #{self.state.total_reboots}")
+
+    def reboot_happened(self) -> bool:
+        """True if the machine rebooted since the grid was staged.
+
+        Uptime resets at boot, so a current uptime at or above the recorded
+        staging uptime means the machine never went through a POST after
+        staging — the staged CurveShaper grid is not live yet.
+        """
+        if self.state is None or not self.state.staged_uptime_s:
+            return True  # legacy state or first run: assume the reboot happened
+        return _uptime_seconds() < self.state.staged_uptime_s
     
     def after_reboot(self) -> None:
         """Update state after reboot"""

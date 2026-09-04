@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Calibration battery crashed at the end of every window** (blocking the
+  whole `calibrate` pipeline on real hardware): `TemperatureSampler.stop()`
+  was called twice — by the context-manager exit and explicitly in
+  `run_battery` — so the second call raised `RuntimeError("sampler was never
+  started")` after each 30–180 s window and no data ever reached state.json.
+  `stop()` is now idempotent and returns the recorded window stats.
+  Regression-pinned in `tests/test_regressions.py`.
+- **`attribute + calibrate` interleaved with the classic per-cell search**:
+  after a probe battery `run()` fell through into the classic loop (no mode
+  gate), whose cell writes landed on top of the staged probe grids and whose
+  stability verdicts were measured under them. Pipeline phases now always
+  stage the next step themselves, and `run()` refuses to fall through while
+  a pipeline mode is active.
+- **Offset-0 calibration was measured under the leftover probe grid**: when
+  attribution completed, `_calibrate_step` re-ran the offset-0 battery while
+  the last +30 probe grid was still live, recording it as natural data and
+  poisoning the F-V curve anchor. The attribution baseline now counts as the
+  offset-0 level (marked done) and completed levels are never re-measured.
+- **A crashed attribution probe was consumed with zero data**: crash
+  recovery left `calib_regime_index` past the end and phase 2 had no reset,
+  so the re-run battery returned no windows and the probe row was credited
+  as done without any measurement. It now resets the index and re-runs the
+  full probe battery, like the calibration sweep does.
+- **"refine current grid" was a silent no-op after a completed run**:
+  `should_continue()` saw `status == "completed"` and returned before the
+  loop; the GUI reported "Optimization finished!" with the old numbers.
+  Seeding refinement (and re-selecting classic search on a completed run)
+  now re-opens the state so Start actually runs.
+- **Start on a cancelled reboot measured stale hardware**: a staged
+  CurveShaper grid only goes live at the next POST; `run()` assumed any
+  `waiting_reboot` state meant "we just rebooted". It now compares the
+  uptime recorded at staging against the current uptime and raises a clear
+  `RebootRequired` error (status preserved) instead of recording old
+  hardware data under the new offset.
+- **PROCTHROTTLEMAX residue after a hard crash**: the cap persists in the
+  power plan, so a crash mid mid/low window left it behind and every later
+  window (including idle/peak of re-run levels) was measured throttled.
+  Each battery session now re-asserts 100% defensively.
+- **Missing stress verdicts passed the stability gate**: a y-cruncher run
+  killed without a usable verdict (`None`) counted as stable for the
+  all-core/mid/low windows; the gate now fails closed.
+- **WHEA event-log query failures were silently treated as "0 errors"**:
+  `check_whea_errors` now raises `MeasurementError` when the query itself
+  fails, so an unstable configuration can no longer pass because the log
+  was unreadable.
+- Derivation: temperature predictions are recomputed after a frequency-cap
+  pullback and after a mid/low ineffective-regime fallback (previously the
+  report showed predictions for an offset the solver did not choose);
+  `_inverse_interp` docstring now matches its deepest-first scan order.
+- GUI: **Reset State** now removes the logon autostart task (it previously
+  lingered and relaunched the GUI for a run that no longer exists).
+- `POST_BOOT_DELAY` is now actually used as the post-boot settle time
+  (previously hardcoded to 5 s while the config documented 30 s).
+- Documentation: reboot-count estimates unified (calibrate ≈ 8–10,
+  attribute + calibrate ≈ 13–15).
+
 ### Changed
 - **License switched from MIT to GPL-3.0-or-later**: full GPLv3 text in
   `LICENSE`; `SPDX-License-Identifier` headers added to all Python sources.

@@ -49,8 +49,9 @@ powershell -ExecutionPolicy Bypass -File scripts\verify-temp.ps1
 
 在 **Pipeline & Limits** 面板里：
 
-- 保持 **calibrate**（推荐；约 8–14 次重启 + 一轮验证），或选
-  `attribute + calibrate`（多 5 次归因探针重启）、`classic search`
+- 保持 **calibrate**（推荐；7 档标定 + 验证，约 8–10 次重启，崩溃重跑
+  会再多几次），或选 `attribute + calibrate`（多 5 次归因探针重启，合计
+  约 13–15 次）、`classic search`
   （约 100–200 次重启）、`refine current grid`
 - 设置上限：**Max Temp**（°C）、**Max Freq**（MHz，0 = 不限）、
   **Max Offset**（正偏移上限）、**Safety Margin**（安全裕量）

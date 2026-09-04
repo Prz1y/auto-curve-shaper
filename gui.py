@@ -564,6 +564,11 @@ class AutoCurveShaperGUI:
             if not (self.state.iteration > 0 or self.state.calib_offsets_done
                     or self.state.attrib_rows_done or self.state.calib_rows):
                 self.state.mode = "standard"
+            elif self.state.status == "completed":
+                # should_continue() exits immediately on "completed"; re-open
+                # the run so Start actually does something (re-validate + refine)
+                self.state.status = "running"
+                self.state.converged = False
             self.state.caps = caps
             self.state.save()
             return True
@@ -742,6 +747,9 @@ class AutoCurveShaperGUI:
 
         if response:
             self._cancel_pending_reboot()
+            # a reset kills the run; the logon autostart task must not linger
+            # and relaunch the GUI for a run that no longer exists
+            unregister_autostart_task()
             if self.state:
                 self.state.reset()
                 self.state.save()

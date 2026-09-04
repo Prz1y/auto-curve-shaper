@@ -114,6 +114,11 @@ def _freq_curve(pts: List[dict]) -> List[Tuple[int, float]]:
             if r.get('stable') and (r.get('freq_max') or 0) > 0]
 
 
+def _temp_curve(pts: List[dict]) -> List[Tuple[int, float]]:
+    """(offset, temp_max) points ascending by offset (all rows)"""
+    return [(r['offset'], r.get('temp_max') or 0.0) for r in pts]
+
+
 def _interp(points: List[Tuple[int, float]], x: int) -> float:
     """Piecewise-linear interpolation, flat at the ends"""
     if not points:
@@ -131,9 +136,13 @@ def _interp(points: List[Tuple[int, float]], x: int) -> float:
 
 
 def _inverse_interp(points: List[Tuple[int, float]], target: float) -> Optional[int]:
-    """Smallest (closest to zero) offset whose interpolated freq == target.
+    """Offset whose interpolated freq == target, truncated toward zero.
 
-    Expects freq decreasing with increasing offset (undervolt raises clocks).
+    Expects freq decreasing with increasing offset (undervolt raises clocks);
+    segments are scanned deepest-first, so on the expected monotonic curve
+    the single crossing is found. Truncation toward zero lands on the
+    shallower (lower-frequency) side, so a freq CAP is never exceeded by
+    linear-interpolation error.
     Returns None if target lies outside the data range.
     """
     if not points:
@@ -191,7 +200,7 @@ def derive_grid(
             d.notes.append("never stable in the sweep — offset pinned at voltage cap")
             warnings.append(f"regime {regime}: no stable point; offset pinned at {max_voltage:+d}")
             d.freq_pred = _interp(curve, d.chosen_offset)
-            d.temp_pred = _interp([(r['offset'], r.get('temp_max') or 0.0) for r in pts], d.chosen_offset)
+            d.temp_pred = _interp(_temp_curve(pts), d.chosen_offset)
             derivations.append(d)
             chosen_by_regime[regime] = d.chosen_offset
             continue
@@ -206,7 +215,7 @@ def derive_grid(
 
         d.chosen_offset = chosen
         d.freq_pred = _interp(curve, chosen)
-        d.temp_pred = _interp([(r['offset'], r.get('temp_max') or 0.0) for r in pts], chosen)
+        d.temp_pred = _interp(_temp_curve(pts), chosen)
         derivations.append(d)
         chosen_by_regime[regime] = chosen
 
@@ -229,6 +238,7 @@ def derive_grid(
                 d.notes.append(f"freq cap: {d.chosen_offset:+d} -> {off:+d}")
                 d.chosen_offset = off
                 d.freq_pred = _interp(curve, off)
+                d.temp_pred = _interp(_temp_curve(by_regime.get(d.regime, [])), off)
             chosen_by_regime[d.regime] = d.chosen_offset
 
     # Temperature cap: undervolt cools, so a violation at the stability
@@ -255,6 +265,10 @@ def derive_grid(
                 f"window did not land below all-core ({max(f for _, f in curve):.0f} vs "
                 f"{allcore_freq:.0f} MHz) — falling back to the all-core boundary")
             d.chosen_offset = allcore_chosen
+            # keep the report honest: predictions now describe the offset the
+            # solver actually chose, interpolated on this regime's own curves
+            d.freq_pred = _interp(curve, allcore_chosen)
+            d.temp_pred = _interp(_temp_curve(by_regime.get(regime, [])), allcore_chosen)
 
     grid = [[0] * CS_COLS for _ in range(CS_ROWS)]
     peak_pred = 0.0

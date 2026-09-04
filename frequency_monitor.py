@@ -397,30 +397,36 @@ def check_whea_errors(since: Optional[datetime] = None) -> int:
     Returns the count of errors newer than `since` (default: last 10 minutes).
     Pass an explicit timestamp to avoid attributing old errors to the
     configuration currently under test.
+
+    Raises MeasurementError when the query itself fails: an unreadable event
+    log must not be mistaken for "no errors" (an unstable configuration could
+    otherwise pass as stable).
     """
-    try:
-        if since is not None:
-            start_time_expr = f"[datetime]'{since.strftime('%Y-%m-%dT%H:%M:%S')}'"
-        else:
-            start_time_expr = "(Get-Date).AddMinutes(-10)"
+    if since is not None:
+        start_time_expr = f"[datetime]'{since.strftime('%Y-%m-%dT%H:%M:%S')}'"
+    else:
+        start_time_expr = "(Get-Date).AddMinutes(-10)"
 
-        cmd = [
-            "powershell",
-            "-Command",
-            f"Get-WinEvent -FilterHashtable @{{LogName='System'; "
-            f"ProviderName='Microsoft-Windows-WHEA-Logger'; ID={WHEA_CRITICAL_ID}; "
-            f"StartTime={start_time_expr}}} -ErrorAction SilentlyContinue | "
-            f"Measure-Object | Select-Object -ExpandProperty Count"
-        ]
+    cmd = [
+        "powershell",
+        "-Command",
+        f"Get-WinEvent -FilterHashtable @{{LogName='System'; "
+        f"ProviderName='Microsoft-Windows-WHEA-Logger'; ID={WHEA_CRITICAL_ID}; "
+        f"StartTime={start_time_expr}}} -ErrorAction SilentlyContinue | "
+        f"Measure-Object | Select-Object -ExpandProperty Count"
+    ]
 
-        result = run_command(cmd, check=False)
-        count = int(result.stdout.strip()) if result.stdout.strip().isdigit() else 0
+    result = run_command(cmd, check=False)
+    if result.returncode != 0:
+        raise MeasurementError(
+            f"WHEA event query failed (exit {result.returncode}): "
+            f"{(result.stderr or '').strip()[:200]}")
 
-        if count > 0:
-            logger.warning(f"Detected {count} WHEA Event ID {WHEA_CRITICAL_ID} errors since {since or '10 minutes ago'}")
+    out = (result.stdout or "").strip()
+    # no matching events -> empty pipeline -> nothing printed -> 0
+    count = int(out) if out.isdigit() else 0
 
-        return count
+    if count > 0:
+        logger.warning(f"Detected {count} WHEA Event ID {WHEA_CRITICAL_ID} errors since {since or '10 minutes ago'}")
 
-    except Exception as e:
-        logger.error(f"Failed to check WHEA errors: {e}")
-        return 0
+    return count

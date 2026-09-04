@@ -104,6 +104,7 @@ class TemperatureSampler:
         self._samples: List[float] = []
         self._errors = 0
         self._started = ""
+        self._stats: Optional[TempStats] = None
 
     def __enter__(self) -> "TemperatureSampler":
         self.start()
@@ -117,6 +118,7 @@ class TemperatureSampler:
             return
         self._samples.clear()
         self._errors = 0
+        self._stats = None
         self._started = datetime.now().isoformat()
         self._stop_evt.clear()
         self._thread = threading.Thread(target=self._loop, daemon=True,
@@ -140,6 +142,12 @@ class TemperatureSampler:
 
     def stop(self, raise_on_empty: bool = True) -> TempStats:
         if self._thread is None:
+            # Already stopped: hand back the recorded window stats. stop() is
+            # called both by the context manager (__exit__) and by callers
+            # reading the stats afterwards — the second call must be a no-op,
+            # not a RuntimeError (v1.5.0: every battery window crashed here).
+            if self._stats is not None:
+                return self._stats
             raise RuntimeError("sampler was never started")
         self._stop_evt.set()
         self._thread.join(timeout=self._interval * 4 + 15)
@@ -158,6 +166,7 @@ class TemperatureSampler:
             logger.info(f"Temperature window: avg {stats.avg_c:.1f} °C, "
                         f"max {stats.max_c:.1f} °C, min {stats.min_c:.1f} °C "
                         f"({stats.n_samples} samples, {stats.n_errors} errors)")
+            self._stats = stats
         elif raise_on_empty:
             raise TemperatureError(
                 "no Tctl samples were collected in the window "
