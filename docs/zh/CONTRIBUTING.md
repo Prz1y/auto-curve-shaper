@@ -48,7 +48,7 @@ python tests\test_pipeline.py    # 完整管线状态机（模拟硬件）
 python -m py_compile *.py        # 语法检查
 ```
 
-`test_pipeline.py` 不碰硬件——没有 csprobe 调用、没有重启、不碰真实的
+`test_pipeline.py` 不碰硬件——没有探测工具调用、没有重启、不碰真实的
 `state.json`（重定向到临时文件）。**已知局限**：模拟抓不到负载集成的
 回归。如果你改了 `frequency_monitor` 或 `workload` 的函数签名，请另外
 做一次真实短测：提权环境下 `measure_frequencies_load(20)` +

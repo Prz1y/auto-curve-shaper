@@ -15,28 +15,21 @@
 - [ ] Python 3.8+ 已安装
 - [ ] 管理员账户
 
-### 2. 配置 cs-probe 路径
+### 2. 配置 SMU 探测工具链路径
 
-打开 `config.py`，确认：
-
-```python
-CS_PROBE_DIR = Path(r"C:\Users\deepi\.zcode\workspace\default\cs-probe")
-```
-
-如果 cs-probe 在其他位置，修改此路径。
+打开 `config.py`，把 `CS_PROBE_DIR` 指向你的 SMU 探测工具链
+（CurveShaper 写入 + SMN 读取）所在目录。该工具链**不随本仓库分发**。
 
 ### 3. 验证链路（可选，但建议做）
 
 ```powershell
-# 提权 PowerShell
-cd <cs-probe 目录>
-.\csprobe\csprobe.exe info        # SMU / 邮箱 / 每核 CO 读回
-.\clocks-sample.ps1 10            # 频率采样
-
+# 提权 PowerShell，项目目录
 # Tctl 温度遥测自检（本项目自带脚本）
-cd <项目目录>
 powershell -ExecutionPolicy Bypass -File scripts\verify-temp.ps1
 ```
+
+首次标定前，另请运行探测工具链自带的 info / 频率采样命令，确认 SMU
+访问正常。
 
 压力测试使用 **y-cruncher**（能检测计算错误，比 burn.exe 的纯崩溃检测
 强）：从 <https://www.numberworld.org/y-cruncher/> 下载 Windows x64 版，
@@ -102,10 +95,10 @@ powershell -ExecutionPolicy Bypass -File scripts\verify-temp.ps1
 | 症状 | 处理 |
 |---|---|
 | "Administrator privileges required" / WinRing0 初始化失败 | 提权运行 |
-| "csprobe.exe not found" | 检查 `config.py` 里的 `CS_PROBE_DIR` |
+| 找不到探测工具可执行文件 | 检查 `config.py` 里的 `CS_PROBE_DIR` |
 | "No frequencies parsed" | 检查 `clocks-sample.ps1`；`Set-ExecutionPolicy RemoteSigned` |
 | "no Tctl samples" | 提权运行 `scripts\verify-temp.ps1` |
-| 重启后不稳定 | 工具自动回退；手动：`csprobe cs-clear -f` + 重启 |
+| 重启后不稳定 | 工具自动回退；手动：探测工具 `cs-clear -f` + 重启 |
 | "Offset -20 is UNSTABLE" | 正常现象——扫描正在探测极限 |
 
 ## 安全提示

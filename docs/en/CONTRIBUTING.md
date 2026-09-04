@@ -52,7 +52,7 @@ python tests\test_pipeline.py    # full pipeline state machine (mocked hardware)
 python -m py_compile *.py        # syntax check
 ```
 
-`test_pipeline.py` never touches hardware — no csprobe calls, no reboots,
+`test_pipeline.py` never touches hardware — no probe calls, no reboots,
 no real `state.json` (redirected to a temp file). **Known limitation:** the
 mocks cannot catch workload-integration regressions. If you change
 `frequency_monitor` or `workload` signatures, also run one short *real*

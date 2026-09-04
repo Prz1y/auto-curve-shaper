@@ -15,28 +15,22 @@ Back to: [Full documentation](README.md) · [中文快速开始](../zh/QUICKSTAR
 - [ ] Python 3.8+ installed
 - [ ] Administrator account
 
-### 2. Point the tool at cs-probe
+### 2. Point the tool at the SMU probe toolchain
 
-Open `config.py` and verify:
-
-```python
-CS_PROBE_DIR = Path(r"C:\Users\deepi\.zcode\workspace\default\cs-probe")
-```
-
-Adjust if your cs-probe lives elsewhere.
+Open `config.py` and set `CS_PROBE_DIR` to the directory of your SMU
+probe toolchain (CurveShaper writes + SMN reads). The toolchain is
+**not bundled** with this repository.
 
 ### 3. Verify the plumbing (optional but recommended)
 
 ```powershell
-# elevated PowerShell
-cd <cs-probe-dir>
-.\csprobe\csprobe.exe info        # SMU / mailbox / per-core CO readback
-.\clocks-sample.ps1 10            # frequency sampling
-
+# elevated PowerShell, project directory
 # Tctl telemetry self-test (this project's script)
-cd <project-dir>
 powershell -ExecutionPolicy Bypass -File scripts\verify-temp.ps1
 ```
+
+Also run your probe toolchain's own info / frequency-sampling commands to
+confirm SMU access before the first calibration.
 
 Stress testing uses **y-cruncher** (detects computation errors, unlike
 burn.exe's crash-only detection): download the Windows x64 build from
@@ -107,10 +101,10 @@ per refinement sweep.
 | Symptom | Fix |
 |---|---|
 | "Administrator privileges required" / WinRing0 init fail | Run elevated |
-| "csprobe.exe not found" | Fix `CS_PROBE_DIR` in `config.py` |
+| Probe executable not found | Fix `CS_PROBE_DIR` in `config.py` |
 | "No frequencies parsed" | Check `clocks-sample.ps1`; `Set-ExecutionPolicy RemoteSigned` |
 | "no Tctl samples" | Run `scripts\verify-temp.ps1` elevated |
-| Unstable after reboot | The tool rolls back automatically; manual: `csprobe cs-clear -f` + reboot |
+| Unstable after reboot | The tool rolls back automatically; manual: the probe's `cs-clear -f` + reboot |
 | "Offset -20 is UNSTABLE" | Normal — the sweep is probing the limits |
 
 ## Safety do / don't

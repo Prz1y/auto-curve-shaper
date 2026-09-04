@@ -28,7 +28,7 @@ once — and then solves for the grid.
 Two properties make this work:
 
 1. **Within the stable range, frequency rises monotonically as the voltage
-   offset drops** (verified experimentally with cs-probe). The optimum is
+   offset drops** (verified experimentally on hardware). The optimum is
    therefore *at* the stability boundary, not at an interior extremum —
    finding it is a boundary-detection problem, not a search problem.
 2. **CS itself interpolates linearly between its anchor points.** The
@@ -44,7 +44,7 @@ on it. Two mechanisms handle this:
 **Differential attribution experiment** (one-off, ~5 reboots). Probe one CS
 row at +30 per reboot against the offset-0 battery; regimes whose frequency
 moves (≥100 MHz, either direction — sensitivity is the signal, not
-direction) belong to that row. cs-probe's Test A already demonstrated half
+direction) belong to that row. One-off +30 staging tests already demonstrated half
 the map: Min +30 moved idle clocks, High/Max +30 moved hot all-core clocks.
 
 **Attribution by measured frequency, never by workload name.** Undervolt
@@ -74,8 +74,8 @@ dropped ≥150 MHz below the all-core window), flags the regime
 "not effective", and conservatively reuses the all-core boundary.
 
 Every window records `(offset, regime, freq, temp, stable, whea)`.
-Temperature is sampled at ~2 Hz from Tctl (SMN `0x59800` via
-`csprobe read`) on a background thread, giving the F-T and V-T tables their
+Temperature is sampled at ~2 Hz from Tctl (SMN `0x59800`, read via
+the probe helper) on a background thread, giving the F-T and V-T tables their
 temperature axis for free. The all-core window doubles as the level's
 stability gate (y-cruncher verdict + WHEA deltas per window).
 

@@ -127,10 +127,10 @@ auto-curve-shaper/
 ├── calibration.py           # 全谱电池 + 归因实验
 ├── derive.py                # 求解器：边界 + 裕量 + 上限 → 5×3 网格
 ├── workload.py              # 负载电池（绑核 worker、powercfg 限频）
-├── temperature_monitor.py   # Tctl 温度遥测（csprobe SMN 读取）
+├── temperature_monitor.py   # Tctl 温度遥测（SMN 读取）
 ├── state_manager.py         # 跨重启状态持久化
 ├── frequency_monitor.py     # CPU 频率测量
-├── utils.py                 # 工具函数与 csprobe 封装
+├── utils.py                 # 工具函数与探测工具封装
 ├── config.py                # 配置参数
 ├── scripts/
 │   └── verify-temp.ps1      # 提权温度采样自检
@@ -150,8 +150,8 @@ auto-curve-shaper/
 
 1. AMD Ryzen 9000 (Zen 5) CPU，Windows 10/11
 2. Python 3.8+（自带 tkinter）
-3. cs-probe 工具——在 `config.py` 里把 `CS_PROBE_DIR` 指向安装路径
-   （需要 `csprobe.exe`、`clocks-sample.ps1`；`burn/` 可选）
+3. 外部 SMU 探测工具链（CurveShaper 写入与 SMN 读取，仓库不附带）——
+   在 `config.py` 里把 `CS_PROBE_DIR` 指向其安装路径
 4. y-cruncher（推荐）：从
    [numberworld.org](https://www.numberworld.org/y-cruncher/) 下载
    Windows x64 版，解压到项目的 `y-cruncher\` 文件夹。没有它工具会回退
@@ -221,12 +221,12 @@ AUTO_REBOOT = True               # False = 手动重启
 
 | 症状 | 处理 |
 |---|---|
-| "csprobe cannot start the WinRing0 kernel driver" / "Administrator Required" | 以管理员身份运行 GUI（右键 `run-gui.cmd`） |
-| 找不到 csprobe.exe | 检查 `config.py` 的 `CS_PROBE_DIR` / `CSPROBE_EXE` |
+| WinRing0 驱动初始化失败 / "Administrator Required" | 以管理员身份运行 GUI（右键 `run-gui.cmd`） |
+| 找不到探测工具可执行文件 | 检查 `config.py` 的 `CS_PROBE_DIR` / `CSPROBE_EXE` |
 | 频率测不到 | 检查 `clocks-sample.ps1`；`Set-ExecutionPolicy RemoteSigned` |
-| "no Tctl samples" | 提权运行 `scripts\verify-temp.ps1`；部分主板需要更新 cs-probe |
-| 重启后出现 WHEA 错误 | 该档位太激进——工具会自动回退；手动恢复：`csprobe cs-clear -f` 后重启 |
-| 激进档位后开不了机 | 清 CMOS；然后用 `cs-probe\csprobe\run-elevated.ps1` 执行 `cs-clear -f` |
+| "no Tctl samples" | 提权运行 `scripts\verify-temp.ps1`；部分主板需要更新探测工具版本 |
+| 重启后出现 WHEA 错误 | 该档位太激进——工具会自动回退；手动恢复：执行探测工具的 `cs-clear -f` 后重启 |
+| 激进档位后开不了机 | 清 CMOS；然后用探测工具链的提权运行器执行 `cs-clear -f` |
 | mid/low 窗口频率还是全核 boost 水平 | 此电源计划下 PROCTHROTTLEMAX 无效——求解器会检测到（该工况标记"无效"）并回退全核边界 |
 
 ## 安全机制
@@ -245,9 +245,9 @@ AUTO_REBOOT = True               # False = 手动重启
 
 ## 致谢
 
-构建于 **cs-probe**（CurveShaper 探测工具）、**ZenStates-Core**
-（irusanov，SMU 接口）、**y-cruncher**（Xavier Gagnon，稳定性测试）与
-SkatterBencher 的 Curve Shaper 实测数据之上。
+构建于 **ZenStates-Core**（irusanov，SMU 接口）、**y-cruncher**
+（Xavier Gagnon，稳定性测试）与 SkatterBencher 的 Curve Shaper 实测数据
+之上。
 
 ## 许可证
 

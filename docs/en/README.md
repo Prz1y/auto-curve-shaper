@@ -140,10 +140,10 @@ auto-curve-shaper/
 ├── calibration.py           # Full-spectrum battery + attribution experiment
 ├── derive.py                # Solver: boundaries + margin + caps -> 5x3 grid
 ├── workload.py              # Load battery (affinity workers, powercfg throttle)
-├── temperature_monitor.py   # Tctl telemetry via csprobe SMN read
+├── temperature_monitor.py   # Tctl telemetry (SMN read)
 ├── state_manager.py         # Reboot persistence and state tracking
 ├── frequency_monitor.py     # CPU frequency measurement
-├── utils.py                 # Utility functions and csprobe wrapper
+├── utils.py                 # Utility functions and probe wrapper
 ├── config.py                # Configuration parameters
 ├── scripts/
 │   └── verify-temp.ps1      # Elevated Tctl sampling self-test
@@ -163,8 +163,9 @@ auto-curve-shaper/
 
 1. AMD Ryzen 9000 (Zen 5) CPU on Windows 10/11
 2. Python 3.8+ (tkinter included)
-3. cs-probe tools — set `CS_PROBE_DIR` in `config.py` to the installation
-   path (needs `csprobe.exe`, `clocks-sample.ps1`; `burn/` optional)
+3. An external SMU probe toolchain for CurveShaper writes and SMN reads
+   (not bundled with this repository) — set `CS_PROBE_DIR` in `config.py`
+   to its location
 4. y-cruncher (recommended): download the Windows x64 build from
    [numberworld.org](https://www.numberworld.org/y-cruncher/), unpack into
    the project's `y-cruncher\` folder. Without it the tool falls back to
@@ -240,12 +241,12 @@ AUTO_REBOOT = True               # False = manual reboots
 
 | Symptom | Fix |
 |---|---|
-| "csprobe cannot start the WinRing0 kernel driver" / "Administrator Required" | Run the GUI elevated (right-click `run-gui.cmd`) |
-| csprobe.exe not found | Check `CS_PROBE_DIR` / `CSPROBE_EXE` in `config.py` |
+| WinRing0 driver init failure / "Administrator Required" | Run the GUI elevated (right-click `run-gui.cmd`) |
+| Probe executable not found | Check `CS_PROBE_DIR` / `CSPROBE_EXE` in `config.py` |
 | Frequencies not measured | Check `clocks-sample.ps1`; `Set-ExecutionPolicy RemoteSigned` |
-| "no Tctl samples" | Run `scripts\verify-temp.ps1` elevated; some boards need a cs-probe update |
-| WHEA errors after a reboot | That level was too aggressive — the tool rolls back automatically; manual recovery: `csprobe cs-clear -f`, reboot |
-| Boot loop after aggressive level | Clear CMOS; then `cs-probe\csprobe\run-elevated.ps1` with `cs-clear -f` |
+| "no Tctl samples" | Run `scripts\verify-temp.ps1` elevated; some boards need a newer probe build |
+| WHEA errors after a reboot | That level was too aggressive — the tool rolls back automatically; manual recovery: the probe's `cs-clear -f`, reboot |
+| Boot loop after aggressive level | Clear CMOS; then use the probe toolchain's elevated runner to issue `cs-clear -f` |
 | mid/low windows show full boost clocks | `PROCTHROTTLEMAX` has no effect on this power plan — the solver detects this (regime flagged "not effective") and falls back to the all-core boundary |
 
 ## Safety features
@@ -267,9 +268,9 @@ a production system's first calibration.
 
 ## Credits
 
-Built on top of **cs-probe** (CurveShaper exploration tool),
-**ZenStates-Core** (irusanov, SMU interface), **y-cruncher** (Xavier Gagnon,
-stability testing), and the SkatterBencher Curve Shaper measurements.
+Built on top of **ZenStates-Core** (irusanov, SMU interface),
+**y-cruncher** (Xavier Gagnon, stability testing), and the SkatterBencher
+Curve Shaper measurements.
 
 ## License
 

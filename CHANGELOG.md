@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`QUICKSTART.md`, `CONTRIBUTING.md`, and the stale v1.0-era snapshots
   `PROJECT_COMPLETE.md` / `PROJECT_SUMMARY.md` — their content lives on,
   updated, in `docs/`).
+- Documentation no longer names the external SMU probe toolchain; it is
+  referenced only via the `CS_PROBE_DIR` / `CSPROBE_EXE` config keys.
+  Stale `GITHUB_SETUP.md` snapshot removed as well.
 
 ## [1.5.0] - 2026-09-04
 
@@ -35,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     row feeds all three tables. Total pipeline cost: ~8-14 reboots versus
     100-200 for the classic search.
   - **Temperature telemetry** (`temperature_monitor.py`): Tctl sampled at
-    ~2 Hz via `csprobe read 0x59800` (ZenStates-Core/WinRing0). Requires
+    ~2 Hz via an SMN `0x59800` read (ZenStates-Core/WinRing0). Requires
     elevation; persistent failure aborts a calibration run (temperature is
     load-bearing data there) but only warns in classic mode.
   - **Differential attribution experiment** (optional, `attribute + calibrate`
@@ -201,7 +204,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **verify-setup.ps1**: Python detection no longer reports "[OK] Python
   found" when python is missing (native command failures don't throw in
   PowerShell).
-- csprobe invocations now have a 60s timeout instead of hanging forever.
+- Probe invocations now have a 60s timeout instead of hanging forever.
 
 ## [1.0.0] - 2026-09-03
 
@@ -237,7 +240,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tkinter GUI (included with Python)
 - Windows-only (ACPI AOD WMI interface)
 - AMD Zen 5 (Ryzen 9000) support
-- Integration with cs-probe tools
+- Integration with external SMU probe tools
 - Automatic reboot cycle management
 
 ### Documentation
@@ -250,9 +253,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known Limitations
 - Requires manual reboot between iterations
-- Windows-only (cs-probe limitation)
+- Windows-only (probe toolchain limitation)
 - Single-threaded optimization
-- Requires cs-probe external tools
+- Requires external SMU probe tools (not bundled)
 - AMD Zen 5 only (not tested on other architectures)
 
 ### System Requirements
@@ -260,7 +263,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Windows 10/11
 - Python 3.8 or higher
 - Administrator privileges
-- cs-probe tools
+- External SMU probe tools
 
 ---
 
@@ -296,9 +299,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Migration Guide
 
-### From cs-probe Manual Testing
+### From Manual Probe Testing
 
-If you were manually testing CurveShaper values with cs-probe:
+If you were manually testing CurveShaper values with the probe tool:
 
 1. **Backup your current settings**:
    ```bash
@@ -307,7 +310,7 @@ If you were manually testing CurveShaper values with cs-probe:
 
 2. **Clear existing settings**:
    ```bash
-   csprobe cs-clear -f
+   cs-clear -f
    ```
 
 3. **Run Auto Curve Shaper**:
@@ -346,7 +349,6 @@ The `state.json` file structure:
 ## Credits
 
 ### Built On
-- **cs-probe**: AMD Zen 5 CurveShaper exploration tool
 - **ZenStates-Core**: SMU interface library by irusanov
 - **burn.exe**: CPU stress testing utility
 

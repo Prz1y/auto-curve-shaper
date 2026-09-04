@@ -63,6 +63,5 @@ This project is licensed under the **GNU General Public License v3.0 or
 later (GPL-3.0-or-later)** — see [LICENSE](LICENSE).
 本项目基于 **GPL-3.0-or-later** 许可证开源，详见 [LICENSE](LICENSE)。
 
-Built on top of / 基于: [cs-probe](https://github.com/Prz1y) ·
-[ZenStates-Core](https://github.com/irusanov/ZenStates-Core) ·
+Built on top of / 基于: [ZenStates-Core](https://github.com/irusanov/ZenStates-Core) ·
 [y-cruncher](https://www.numberworld.org/y-cruncher/)
