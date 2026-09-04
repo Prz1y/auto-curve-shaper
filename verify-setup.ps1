@@ -74,7 +74,7 @@ Write-Host "Next steps:" -ForegroundColor White
 Write-Host "  1. If cs-probe path is different, edit config.py" -ForegroundColor White
 Write-Host "  2. Run with Administrator privileges:" -ForegroundColor White
 Write-Host "     Right-click run-gui.cmd > Run as Administrator" -ForegroundColor White
-Write-Host "  3. Read QUICKSTART.md for usage guide" -ForegroundColor White
+Write-Host "  3. Read docs/en/QUICKSTART.md (or docs/zh/) for usage" -ForegroundColor White
 Write-Host ""
 
 Write-Host "Press any key to exit..."

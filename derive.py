@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """
 Phase 1 derivation: calibration tables -> derived 5x3 grid
 

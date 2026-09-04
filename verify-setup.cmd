@@ -71,7 +71,7 @@ echo Next steps:
 echo   1. If cs-probe path is different, edit config.py
 echo   2. Run with Administrator privileges:
 echo      Right-click run-gui.cmd ^> Run as Administrator
-echo   3. Read QUICKSTART.md for usage guide
+echo   3. Read docs\en\QUICKSTART.md (or docs\zh\QUICKSTART.md) for usage
 echo.
 
 pause

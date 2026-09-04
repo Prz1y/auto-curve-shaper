@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """
 GUI for Auto Curve Shaper
 Modern interface with real-time progress display
