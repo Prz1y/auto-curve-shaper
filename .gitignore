@@ -57,5 +57,5 @@ ycruncher_tmp/
 # GUI single-instance lock
 gui.lock
 
-# csprobe driver-start debug artifact
+# SMU probe driver-start debug artifact
 WinRing0.txt

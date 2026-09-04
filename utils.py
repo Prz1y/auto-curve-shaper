@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 import time
 
-from config import BASE_DIR, CSPROBE_EXE, LOGS_DIR, ROW_NAMES, COL_NAMES
+from config import BASE_DIR, PROBE_EXE, LOGS_DIR, ROW_NAMES, COL_NAMES
 
 # Setup logging
 LOGS_DIR.mkdir(exist_ok=True)
@@ -77,18 +77,18 @@ def run_powershell(script_path: Path, args: List[str] = None, timeout: Optional[
     return result.stdout
 
 
-def run_csprobe(args: List[str], force: bool = False) -> str:
+def run_probe(args: List[str], force: bool = False) -> str:
     """
-    Run the SMU probe executable with given arguments
+    Run the SMU probe executable (acsprobe) with given arguments
     """
-    if not CSPROBE_EXE.exists():
+    if not PROBE_EXE.exists():
         raise FileNotFoundError(
-            "SMU probe executable not found. Set the CS_PROBE_DIR environment "
-            'variable (setx CS_PROBE_DIR "<toolchain dir>") or place the '
+            "SMU probe executable not found. Set the PROBE_TOOLS_DIR environment "
+            'variable (setx PROBE_TOOLS_DIR "<toolchain dir>") or place the '
             "toolchain in the project's probe-tools/ folder. Expected: "
-            f"{CSPROBE_EXE}")
-    
-    cmd = [str(CSPROBE_EXE)] + args
+            f"{PROBE_EXE}")
+
+    cmd = [str(PROBE_EXE)] + args
     if force and "-f" not in args:
         cmd.append("-f")
 
@@ -111,7 +111,7 @@ def cs_set_cell(row: int, col: int, offset: int, force: bool = True) -> None:
         raise ValueError(f"Invalid offset {offset}, must be -30 to +30")
     
     logger.info(f"Setting CS cell [{ROW_NAMES[row]}, {COL_NAMES[col]}] = {offset:+d}")
-    run_csprobe(["cs-set", str(row), str(col), str(offset)], force=force)
+    run_probe(["cs-set", str(row), str(col), str(offset)], force=force)
 
 
 def cs_clear(force: bool = True) -> None:
@@ -119,7 +119,7 @@ def cs_clear(force: bool = True) -> None:
     Clear all CurveShaper cells (set to 0)
     """
     logger.info("Clearing all CS cells")
-    run_csprobe(["cs-clear"], force=force)
+    run_probe(["cs-clear"], force=force)
 
 
 def cs_set_grid(grid: List[List[int]], force: bool = True) -> None:
@@ -143,9 +143,9 @@ def cs_set_grid(grid: List[List[int]], force: bool = True) -> None:
 
 def get_cpu_info() -> Dict[str, Any]:
     """
-    Get CPU information from csprobe
+    Get CPU information from the SMU probe
     """
-    output = run_csprobe(["info"])
+    output = run_probe(["info"])
     # Parse output for CPU name, core count, etc.
     # For now, return basic info
     return {

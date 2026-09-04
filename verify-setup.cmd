@@ -42,15 +42,15 @@ if %errorLevel% == 0 (
 )
 echo.
 
-REM Check SMU probe toolchain (env var CS_PROBE_DIR, else project probe-tools)
+REM Check SMU probe toolchain (env var PROBE_TOOLS_DIR, else project probe-tools)
 echo [4/5] Checking SMU probe toolchain...
-set "PROBE_DIR=%CS_PROBE_DIR%"
+set "PROBE_DIR=%PROBE_TOOLS_DIR%"
 if not defined PROBE_DIR set "PROBE_DIR=%~dp0probe-tools"
-if exist "%PROBE_DIR%\csprobe\csprobe.exe" (
+if exist "%PROBE_DIR%\acsprobe\acsprobe.exe" (
     echo [OK] SMU probe executable found
 ) else (
     echo [WARNING] SMU probe executable not found
-    echo Set the CS_PROBE_DIR environment variable ^(setx CS_PROBE_DIR "dir"^)
+    echo Set the PROBE_TOOLS_DIR environment variable ^(setx PROBE_TOOLS_DIR "dir"^)
     echo or place the toolchain in the project's probe-tools\ folder
 )
 echo.
@@ -71,7 +71,7 @@ echo   Setup Verification Complete
 echo ============================================
 echo.
 echo Next steps:
-echo   1. If the SMU probe toolchain is elsewhere, set CS_PROBE_DIR
+echo   1. If the SMU probe toolchain is elsewhere, set PROBE_TOOLS_DIR
 echo   2. Run with Administrator privileges:
 echo      Right-click run-gui.cmd ^> Run as Administrator
 echo   3. Read docs\en\QUICKSTART.md (or docs\zh\QUICKSTART.md) for usage

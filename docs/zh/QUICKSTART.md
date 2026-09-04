@@ -21,7 +21,7 @@
 二选一：
 
 ```powershell
-setx CS_PROBE_DIR "D:\工具链目录"   # 机器级环境变量（推荐）
+setx PROBE_TOOLS_DIR "D:\工具链目录"   # 机器级环境变量（推荐）
 ```
 
 或把工具链放进项目内的 `probe-tools\` 文件夹。
@@ -101,7 +101,7 @@ powershell -ExecutionPolicy Bypass -File scripts\verify-temp.ps1
 | 症状 | 处理 |
 |---|---|
 | "Administrator privileges required" / WinRing0 初始化失败 | 提权运行 |
-| 找不到探测工具可执行文件 | 检查 `config.py` 里的 `CS_PROBE_DIR` |
+| 找不到探测工具可执行文件 | 检查 `config.py` 里的 `PROBE_TOOLS_DIR` |
 | "No frequencies parsed" | 检查 `clocks-sample.ps1`；`Set-ExecutionPolicy RemoteSigned` |
 | "no Tctl samples" | 提权运行 `scripts\verify-temp.ps1` |
 | 重启后不稳定 | 工具自动回退；手动：探测工具 `cs-clear -f` + 重启 |

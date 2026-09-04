@@ -21,7 +21,7 @@ The toolchain (CurveShaper writes + SMN reads) is **not bundled** with
 this repository. Point the tool at it either way:
 
 ```powershell
-setx CS_PROBE_DIR "D:\path\to\probe-tools"   # machine-wide (recommended)
+setx PROBE_TOOLS_DIR "D:\path\to\probe-tools"   # machine-wide (recommended)
 ```
 
 or place it in a project-local `probe-tools\` folder.
@@ -106,7 +106,7 @@ per refinement sweep.
 | Symptom | Fix |
 |---|---|
 | "Administrator privileges required" / WinRing0 init fail | Run elevated |
-| Probe executable not found | Fix `CS_PROBE_DIR` in `config.py` |
+| Probe executable not found | Fix `PROBE_TOOLS_DIR` in `config.py` |
 | "No frequencies parsed" | Check `clocks-sample.ps1`; `Set-ExecutionPolicy RemoteSigned` |
 | "no Tctl samples" | Run `scripts\verify-temp.ps1` elevated |
 | Unstable after reboot | The tool rolls back automatically; manual: the probe's `cs-clear -f` + reboot |

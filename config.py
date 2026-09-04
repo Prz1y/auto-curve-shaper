@@ -11,17 +11,17 @@ RELEASE_DATE = "2026-09-04"
 
 # Paths
 BASE_DIR = Path(__file__).parent
-# External SMU probe toolchain (CurveShaper writes + SMN reads) — NOT bundled
-# with this repository. Resolution order:
-#   1. CS_PROBE_DIR environment variable (recommended, machine-wide):
-#        setx CS_PROBE_DIR "D:\path\to\probe-tools"
+# External SMU probe toolchain (`acsprobe` — CurveShaper writes + SMN reads),
+# NOT bundled with this repository. Resolution order:
+#   1. PROBE_TOOLS_DIR environment variable (recommended, machine-wide):
+#        setx PROBE_TOOLS_DIR "D:\path\to\probe-tools"
 #   2. a project-local .\probe-tools folder
 # Never commit a personal absolute path here.
-# Expected layout: <dir>\csprobe\<probe>.exe, <dir>\burn\, <dir>\clocks-sample.ps1
-CS_PROBE_DIR = Path(os.environ.get("CS_PROBE_DIR") or BASE_DIR / "probe-tools")
-CSPROBE_EXE = CS_PROBE_DIR / "csprobe" / "csprobe.exe"
-BURN_EXE = CS_PROBE_DIR / "burn" / "burn.exe"
-CLOCKS_SAMPLE_PS1 = CS_PROBE_DIR / "clocks-sample.ps1"
+# Expected layout: <dir>\acsprobe\acsprobe.exe, <dir>\burn\, <dir>\clocks-sample.ps1
+PROBE_TOOLS_DIR = Path(os.environ.get("PROBE_TOOLS_DIR") or BASE_DIR / "probe-tools")
+PROBE_EXE = PROBE_TOOLS_DIR / "acsprobe" / "acsprobe.exe"
+BURN_EXE = PROBE_TOOLS_DIR / "burn" / "burn.exe"
+CLOCKS_SAMPLE_PS1 = PROBE_TOOLS_DIR / "clocks-sample.ps1"
 
 # Stress test: y-cruncher (detects computation errors, unlike burn.exe which
 # only measures crashes). Get it from https://www.numberworld.org/y-cruncher/

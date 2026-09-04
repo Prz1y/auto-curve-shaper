@@ -49,7 +49,7 @@ class TextHandler(logging.Handler):
 # ---------------------------------------------------------------------------
 # Single-instance lock: the autostart task can fire while the user still has
 # the GUI open from before the reboot; a second instance would fight over
-# state.json and csprobe
+# state.json and the SMU probe
 #
 # MUST be a kernel byte-range lock (msvcrt.locking), NOT a PID written to a
 # file: Windows reuses PIDs after a reboot, so "recorded PID is alive" gives

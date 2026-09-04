@@ -138,6 +138,7 @@ auto-curve-shaper/
 │   ├── test_derive.py       # 求解器测试（合成数据）
 │   └── test_pipeline.py     # 完整管线状态机（模拟硬件）
 ├── docs/                    # 本文档（en/ + zh/）
+├── docs/zh/PROBE.md         # 外部 acsprobe 工具的协议细节
 ├── run-gui.cmd / run-gui.ps1
 ├── state.json               # 运行状态（自动生成，已 gitignore）
 ├── results/                 # 测试结果（自动生成，已 gitignore）
@@ -151,7 +152,7 @@ auto-curve-shaper/
 1. AMD Ryzen 9000 (Zen 5) CPU，Windows 10/11
 2. Python 3.8+（自带 tkinter）
 3. 外部 SMU 探测工具链（CurveShaper 写入与 SMN 读取，仓库不附带）——
-   通过 `CS_PROBE_DIR` 环境变量（`setx CS_PROBE_DIR "<目录>"`）或项目内
+   通过 `PROBE_TOOLS_DIR` 环境变量（`setx PROBE_TOOLS_DIR "<目录>"`）或项目内
    `probe-tools/` 文件夹指向它
 4. y-cruncher（推荐）：从
    [numberworld.org](https://www.numberworld.org/y-cruncher/) 下载
@@ -223,7 +224,7 @@ AUTO_REBOOT = True               # False = 手动重启
 | 症状 | 处理 |
 |---|---|
 | WinRing0 驱动初始化失败 / "Administrator Required" | 以管理员身份运行 GUI（右键 `run-gui.cmd`） |
-| 找不到探测工具可执行文件 | 检查 `config.py` 的 `CS_PROBE_DIR` / `CSPROBE_EXE` |
+| 找不到探测工具可执行文件 | 检查 `config.py` 的 `PROBE_TOOLS_DIR` / `PROBE_EXE` |
 | 频率测不到 | 检查 `clocks-sample.ps1`；`Set-ExecutionPolicy RemoteSigned` |
 | "no Tctl samples" | 提权运行 `scripts\verify-temp.ps1`；部分主板需要更新探测工具版本 |
 | 重启后出现 WHEA 错误 | 该档位太激进——工具会自动回退；手动恢复：执行探测工具的 `cs-clear -f` 后重启 |

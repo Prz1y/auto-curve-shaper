@@ -1,19 +1,19 @@
 # Verify Tctl telemetry: sample SMN 0x59800 via the SMU probe, write CSV.
 # MUST run elevated (WinRing0 driver). The probe toolchain directory is taken
-# from the CS_PROBE_DIR environment variable (or -ProbeDir). Usage:
+# from the PROBE_TOOLS_DIR environment variable (or -ProbeDir). Usage:
 #   powershell -File scripts\verify-temp.ps1 [-Seconds 8] [-IntervalMs 250]
 param(
     [int]$Seconds = 8,
     [int]$IntervalMs = 250,
     [string]$OutFile = "",
-    [string]$ProbeDir = $env:CS_PROBE_DIR
+    [string]$ProbeDir = $env:PROBE_TOOLS_DIR
 )
 $ErrorActionPreference = 'Continue'
 if (-not $ProbeDir) {
-    Write-Error "CS_PROBE_DIR is not set - point it at the SMU probe toolchain (setx CS_PROBE_DIR `<dir`>) or pass -ProbeDir"
+    Write-Error "PROBE_TOOLS_DIR is not set - point it at the SMU probe toolchain (setx PROBE_TOOLS_DIR `<dir`>) or pass -ProbeDir"
     exit 1
 }
-$dir = $ProbeDir
+$dir = Join-Path $ProbeDir 'acsprobe'
 if (-not $OutFile) { $OutFile = Join-Path $PSScriptRoot '..\logs\verify_temp.csv' }
 $outDir = Split-Path $OutFile -Parent
 if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir -Force | Out-Null }
@@ -31,7 +31,7 @@ try {
 $deadline = (Get-Date).AddSeconds($Seconds)
 $n = 0
 while ((Get-Date) -lt $deadline) {
-    $line = (& (Join-Path $dir 'csprobe.exe') read 0x59800 2>$null | Select-String 'SMN ').Line
+    $line = (& (Join-Path $dir 'acsprobe.exe') read 0x59800 2>$null | Select-String 'SMN ').Line
     if ($line -match 'SMN 0x[0-9A-Fa-f]+ = 0x([0-9A-Fa-f]{8})') {
         "{0},{1}" -f (Get-Date -Format o), $Matches[1] | Add-Content -Path $OutFile
         $n++

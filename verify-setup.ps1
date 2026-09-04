@@ -44,16 +44,16 @@ if ($LASTEXITCODE -eq 0) {
 }
 Write-Host ""
 
-# Check SMU probe toolchain (env var CS_PROBE_DIR, else project probe-tools)
+# Check SMU probe toolchain (env var PROBE_TOOLS_DIR, else project probe-tools)
 Write-Host "[4/5] Checking SMU probe toolchain..." -ForegroundColor Yellow
-$probeDir = $env:CS_PROBE_DIR
+$probeDir = $env:PROBE_TOOLS_DIR
 if (-not $probeDir) { $probeDir = Join-Path $PSScriptRoot 'probe-tools' }
-$probeExe = Join-Path $probeDir 'csprobe\csprobe.exe'
+$probeExe = Join-Path $probeDir 'acsprobe\acsprobe.exe'
 if (Test-Path $probeExe) {
     Write-Host "[OK] SMU probe executable found" -ForegroundColor Green
 } else {
     Write-Host "[WARNING] SMU probe executable not found" -ForegroundColor Yellow
-    Write-Host 'Set the CS_PROBE_DIR environment variable (setx CS_PROBE_DIR "dir")' -ForegroundColor Yellow
+    Write-Host 'Set the PROBE_TOOLS_DIR environment variable (setx PROBE_TOOLS_DIR "dir")' -ForegroundColor Yellow
     Write-Host "or place the toolchain in the project's probe-tools\ folder" -ForegroundColor Yellow
 }
 Write-Host ""
@@ -74,7 +74,7 @@ Write-Host "  Setup Verification Complete" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor White
-Write-Host "  1. If the SMU probe toolchain is elsewhere, set CS_PROBE_DIR" -ForegroundColor White
+Write-Host "  1. If the SMU probe toolchain is elsewhere, set PROBE_TOOLS_DIR" -ForegroundColor White
 Write-Host "  2. Run with Administrator privileges:" -ForegroundColor White
 Write-Host "     Right-click run-gui.cmd > Run as Administrator" -ForegroundColor White
 Write-Host "  3. Read docs/en/QUICKSTART.md (or docs/zh/) for usage" -ForegroundColor White

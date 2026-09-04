@@ -1,7 +1,7 @@
 """Offline orchestration smoke test: drives Optimizer through the full
 calibrate -> derive -> verify pipeline with mocked hardware access.
 
-No csprobe calls, no reboots, no state.json in the project directory
+No probe calls, no reboots, no state.json in the project directory
 (redirected to a temp file). Run:  python tests\\test_pipeline.py
 """
 import sys

@@ -33,6 +33,7 @@ test. Total cost: **~8–20 reboots** instead of 100–200.
 | [Full documentation](docs/en/README.md) | [完整文档](docs/zh/README.md) |
 | [Quick start](docs/en/QUICKSTART.md) | [快速开始](docs/zh/QUICKSTART.md) |
 | [Calibration pipeline deep-dive](docs/en/CALIBRATION.md) | [标定管线详解](docs/zh/CALIBRATION.md) |
+| [Probe implementation notes](docs/en/PROBE.md) | [探测工具实现说明](docs/zh/PROBE.md) |
 | [Contributing](docs/en/CONTRIBUTING.md) | [参与贡献](docs/zh/CONTRIBUTING.md) |
 | [Changelog](CHANGELOG.md) | [更新日志](CHANGELOG.md) |
 

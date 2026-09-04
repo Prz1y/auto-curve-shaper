@@ -151,6 +151,7 @@ auto-curve-shaper/
 │   ├── test_derive.py       # Solver tests (synthetic tables)
 │   └── test_pipeline.py     # Full pipeline state machine (mocked hardware)
 ├── docs/                    # This documentation (en/ + zh/)
+├── docs/en/PROBE.md         # Wire format of the external acsprobe tool
 ├── run-gui.cmd / run-gui.ps1
 ├── state.json               # Run state (auto-generated, gitignored)
 ├── results/                 # Test results (auto-generated, gitignored)
@@ -165,7 +166,7 @@ auto-curve-shaper/
 2. Python 3.8+ (tkinter included)
 3. An external SMU probe toolchain for CurveShaper writes and SMN reads
    (not bundled with this repository) — point the tool at it via the
-   `CS_PROBE_DIR` environment variable (`setx CS_PROBE_DIR "<dir>"`) or
+   `PROBE_TOOLS_DIR` environment variable (`setx PROBE_TOOLS_DIR "<dir>"`) or
    place it in a project-local `probe-tools/` folder
 4. y-cruncher (recommended): download the Windows x64 build from
    [numberworld.org](https://www.numberworld.org/y-cruncher/), unpack into
@@ -243,7 +244,7 @@ AUTO_REBOOT = True               # False = manual reboots
 | Symptom | Fix |
 |---|---|
 | WinRing0 driver init failure / "Administrator Required" | Run the GUI elevated (right-click `run-gui.cmd`) |
-| Probe executable not found | Check `CS_PROBE_DIR` / `CSPROBE_EXE` in `config.py` |
+| Probe executable not found | Check `PROBE_TOOLS_DIR` / `PROBE_EXE` in `config.py` |
 | Frequencies not measured | Check `clocks-sample.ps1`; `Set-ExecutionPolicy RemoteSigned` |
 | "no Tctl samples" | Run `scripts\verify-temp.ps1` elevated; some boards need a newer probe build |
 | WHEA errors after a reboot | That level was too aggressive — the tool rolls back automatically; manual recovery: the probe's `cs-clear -f`, reboot |

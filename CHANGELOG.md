@@ -19,15 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PROJECT_COMPLETE.md` / `PROJECT_SUMMARY.md` — their content lives on,
   updated, in `docs/`).
 - Documentation no longer names the external SMU probe toolchain; it is
-  referenced only via the `CS_PROBE_DIR` / `CSPROBE_EXE` config keys.
+  referenced only via this project's probe config keys.
   Stale `GITHUB_SETUP.md` snapshot removed as well.
 - **No personal paths in the repository**: the SMU probe toolchain location
-  is now resolved from the `CS_PROBE_DIR` environment variable (recommended,
-  `setx CS_PROBE_DIR "<dir>"`) or a project-local `probe-tools/` folder;
-  the previously hardcoded absolute paths are gone from `config.py`,
-  `verify-setup.cmd`, `verify-setup.ps1` and `scripts/verify-temp.ps1`
-  (which also accepts `-ProbeDir`). A missing toolchain now raises a clear
-  setup error instead of a bare path-not-found.
+  is now resolved from the `PROBE_TOOLS_DIR` environment variable
+  (recommended, `setx PROBE_TOOLS_DIR "<dir>"`) or a project-local
+  `probe-tools/` folder; the previously hardcoded absolute paths are gone
+  from `config.py`, `verify-setup.cmd`, `verify-setup.ps1` and
+  `scripts/verify-temp.ps1` (which also accepts `-ProbeDir`). A missing
+  toolchain now raises a clear setup error instead of a bare path-not-found.
+- **Probe toolchain renamed to `acsprobe`** (Auto Curve Shaper probe):
+  expected layout `<toolchain>\acsprobe\acsprobe.exe`; config keys
+  `CS_PROBE_DIR`/`CSPROBE_EXE` renamed to `PROBE_TOOLS_DIR`/`PROBE_EXE`
+  (`run_csprobe()` → `run_probe()`). Its wire format (AOD WMI object,
+  value encoding, Tctl SMN read) is documented in
+  `docs/en/PROBE.md` / `docs/zh/PROBE.md`.
 
 ## [1.5.0] - 2026-09-04
 
