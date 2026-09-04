@@ -79,10 +79,14 @@ def run_powershell(script_path: Path, args: List[str] = None, timeout: Optional[
 
 def run_csprobe(args: List[str], force: bool = False) -> str:
     """
-    Run csprobe.exe with given arguments
+    Run the SMU probe executable with given arguments
     """
     if not CSPROBE_EXE.exists():
-        raise FileNotFoundError(f"csprobe.exe not found at {CSPROBE_EXE}")
+        raise FileNotFoundError(
+            "SMU probe executable not found. Set the CS_PROBE_DIR environment "
+            'variable (setx CS_PROBE_DIR "<toolchain dir>") or place the '
+            "toolchain in the project's probe-tools/ folder. Expected: "
+            f"{CSPROBE_EXE}")
     
     cmd = [str(CSPROBE_EXE)] + args
     if force and "-f" not in args:

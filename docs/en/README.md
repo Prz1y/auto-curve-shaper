@@ -164,8 +164,9 @@ auto-curve-shaper/
 1. AMD Ryzen 9000 (Zen 5) CPU on Windows 10/11
 2. Python 3.8+ (tkinter included)
 3. An external SMU probe toolchain for CurveShaper writes and SMN reads
-   (not bundled with this repository) — set `CS_PROBE_DIR` in `config.py`
-   to its location
+   (not bundled with this repository) — point the tool at it via the
+   `CS_PROBE_DIR` environment variable (`setx CS_PROBE_DIR "<dir>"`) or
+   place it in a project-local `probe-tools/` folder
 4. y-cruncher (recommended): download the Windows x64 build from
    [numberworld.org](https://www.numberworld.org/y-cruncher/), unpack into
    the project's `y-cruncher\` folder. Without it the tool falls back to

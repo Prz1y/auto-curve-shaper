@@ -11,7 +11,14 @@ RELEASE_DATE = "2026-09-04"
 
 # Paths
 BASE_DIR = Path(__file__).parent
-CS_PROBE_DIR = Path(r"C:\Users\deepi\.zcode\workspace\default\cs-probe")
+# External SMU probe toolchain (CurveShaper writes + SMN reads) — NOT bundled
+# with this repository. Resolution order:
+#   1. CS_PROBE_DIR environment variable (recommended, machine-wide):
+#        setx CS_PROBE_DIR "D:\path\to\probe-tools"
+#   2. a project-local .\probe-tools folder
+# Never commit a personal absolute path here.
+# Expected layout: <dir>\csprobe\<probe>.exe, <dir>\burn\, <dir>\clocks-sample.ps1
+CS_PROBE_DIR = Path(os.environ.get("CS_PROBE_DIR") or BASE_DIR / "probe-tools")
 CSPROBE_EXE = CS_PROBE_DIR / "csprobe" / "csprobe.exe"
 BURN_EXE = CS_PROBE_DIR / "burn" / "burn.exe"
 CLOCKS_SAMPLE_PS1 = CS_PROBE_DIR / "clocks-sample.ps1"

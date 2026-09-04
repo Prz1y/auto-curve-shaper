@@ -42,13 +42,16 @@ if %errorLevel% == 0 (
 )
 echo.
 
-REM Check cs-probe
-echo [4/5] Checking cs-probe tools...
-if exist "C:\Users\deepi\.zcode\workspace\default\cs-probe\csprobe\csprobe.exe" (
-    echo [OK] csprobe.exe found
+REM Check SMU probe toolchain (env var CS_PROBE_DIR, else project probe-tools)
+echo [4/5] Checking SMU probe toolchain...
+set "PROBE_DIR=%CS_PROBE_DIR%"
+if not defined PROBE_DIR set "PROBE_DIR=%~dp0probe-tools"
+if exist "%PROBE_DIR%\csprobe\csprobe.exe" (
+    echo [OK] SMU probe executable found
 ) else (
-    echo [WARNING] csprobe.exe not found at default location
-    echo You need to configure CS_PROBE_DIR in config.py
+    echo [WARNING] SMU probe executable not found
+    echo Set the CS_PROBE_DIR environment variable ^(setx CS_PROBE_DIR "dir"^)
+    echo or place the toolchain in the project's probe-tools\ folder
 )
 echo.
 
@@ -68,7 +71,7 @@ echo   Setup Verification Complete
 echo ============================================
 echo.
 echo Next steps:
-echo   1. If cs-probe path is different, edit config.py
+echo   1. If the SMU probe toolchain is elsewhere, set CS_PROBE_DIR
 echo   2. Run with Administrator privileges:
 echo      Right-click run-gui.cmd ^> Run as Administrator
 echo   3. Read docs\en\QUICKSTART.md (or docs\zh\QUICKSTART.md) for usage

@@ -17,9 +17,14 @@ Back to: [Full documentation](README.md) · [中文快速开始](../zh/QUICKSTAR
 
 ### 2. Point the tool at the SMU probe toolchain
 
-Open `config.py` and set `CS_PROBE_DIR` to the directory of your SMU
-probe toolchain (CurveShaper writes + SMN reads). The toolchain is
-**not bundled** with this repository.
+The toolchain (CurveShaper writes + SMN reads) is **not bundled** with
+this repository. Point the tool at it either way:
+
+```powershell
+setx CS_PROBE_DIR "D:\path\to\probe-tools"   # machine-wide (recommended)
+```
+
+or place it in a project-local `probe-tools\` folder.
 
 ### 3. Verify the plumbing (optional but recommended)
 

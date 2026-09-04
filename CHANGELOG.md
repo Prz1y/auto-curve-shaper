@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation no longer names the external SMU probe toolchain; it is
   referenced only via the `CS_PROBE_DIR` / `CSPROBE_EXE` config keys.
   Stale `GITHUB_SETUP.md` snapshot removed as well.
+- **No personal paths in the repository**: the SMU probe toolchain location
+  is now resolved from the `CS_PROBE_DIR` environment variable (recommended,
+  `setx CS_PROBE_DIR "<dir>"`) or a project-local `probe-tools/` folder;
+  the previously hardcoded absolute paths are gone from `config.py`,
+  `verify-setup.cmd`, `verify-setup.ps1` and `scripts/verify-temp.ps1`
+  (which also accepts `-ProbeDir`). A missing toolchain now raises a clear
+  setup error instead of a bare path-not-found.
 
 ## [1.5.0] - 2026-09-04
 

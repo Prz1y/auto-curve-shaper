@@ -44,14 +44,17 @@ if ($LASTEXITCODE -eq 0) {
 }
 Write-Host ""
 
-# Check cs-probe
-Write-Host "[4/5] Checking cs-probe tools..." -ForegroundColor Yellow
-$csprobePath = "C:\Users\deepi\.zcode\workspace\default\cs-probe\csprobe\csprobe.exe"
-if (Test-Path $csprobePath) {
-    Write-Host "[OK] csprobe.exe found" -ForegroundColor Green
+# Check SMU probe toolchain (env var CS_PROBE_DIR, else project probe-tools)
+Write-Host "[4/5] Checking SMU probe toolchain..." -ForegroundColor Yellow
+$probeDir = $env:CS_PROBE_DIR
+if (-not $probeDir) { $probeDir = Join-Path $PSScriptRoot 'probe-tools' }
+$probeExe = Join-Path $probeDir 'csprobe\csprobe.exe'
+if (Test-Path $probeExe) {
+    Write-Host "[OK] SMU probe executable found" -ForegroundColor Green
 } else {
-    Write-Host "[WARNING] csprobe.exe not found at default location" -ForegroundColor Yellow
-    Write-Host "You need to configure CS_PROBE_DIR in config.py" -ForegroundColor Yellow
+    Write-Host "[WARNING] SMU probe executable not found" -ForegroundColor Yellow
+    Write-Host 'Set the CS_PROBE_DIR environment variable (setx CS_PROBE_DIR "dir")' -ForegroundColor Yellow
+    Write-Host "or place the toolchain in the project's probe-tools\ folder" -ForegroundColor Yellow
 }
 Write-Host ""
 
@@ -71,7 +74,7 @@ Write-Host "  Setup Verification Complete" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor White
-Write-Host "  1. If cs-probe path is different, edit config.py" -ForegroundColor White
+Write-Host "  1. If the SMU probe toolchain is elsewhere, set CS_PROBE_DIR" -ForegroundColor White
 Write-Host "  2. Run with Administrator privileges:" -ForegroundColor White
 Write-Host "     Right-click run-gui.cmd > Run as Administrator" -ForegroundColor White
 Write-Host "  3. Read docs/en/QUICKSTART.md (or docs/zh/) for usage" -ForegroundColor White

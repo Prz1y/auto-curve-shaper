@@ -17,8 +17,14 @@
 
 ### 2. 配置 SMU 探测工具链路径
 
-打开 `config.py`，把 `CS_PROBE_DIR` 指向你的 SMU 探测工具链
-（CurveShaper 写入 + SMN 读取）所在目录。该工具链**不随本仓库分发**。
+该工具链（CurveShaper 写入 + SMN 读取）**不随本仓库分发**。两种方式
+二选一：
+
+```powershell
+setx CS_PROBE_DIR "D:\工具链目录"   # 机器级环境变量（推荐）
+```
+
+或把工具链放进项目内的 `probe-tools\` 文件夹。
 
 ### 3. 验证链路（可选，但建议做）
 

@@ -1,13 +1,19 @@
-# Verify Tctl telemetry: sample SMN 0x59800 via csprobe, write CSV with delays.
-# MUST run elevated (WinRing0 driver). Usage:
-#   powershell -File scripts\verify-temp.ps1 [-Seconds 8] [-IntervalMs 250] [-OutFile ...]
+# Verify Tctl telemetry: sample SMN 0x59800 via the SMU probe, write CSV.
+# MUST run elevated (WinRing0 driver). The probe toolchain directory is taken
+# from the CS_PROBE_DIR environment variable (or -ProbeDir). Usage:
+#   powershell -File scripts\verify-temp.ps1 [-Seconds 8] [-IntervalMs 250]
 param(
     [int]$Seconds = 8,
     [int]$IntervalMs = 250,
-    [string]$OutFile = ""
+    [string]$OutFile = "",
+    [string]$ProbeDir = $env:CS_PROBE_DIR
 )
 $ErrorActionPreference = 'Continue'
-$dir = 'C:\Users\deepi\.zcode\workspace\default\cs-probe\csprobe'
+if (-not $ProbeDir) {
+    Write-Error "CS_PROBE_DIR is not set - point it at the SMU probe toolchain (setx CS_PROBE_DIR `<dir`>) or pass -ProbeDir"
+    exit 1
+}
+$dir = $ProbeDir
 if (-not $OutFile) { $OutFile = Join-Path $PSScriptRoot '..\logs\verify_temp.csv' }
 $outDir = Split-Path $OutFile -Parent
 if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir -Force | Out-Null }

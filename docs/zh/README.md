@@ -151,7 +151,8 @@ auto-curve-shaper/
 1. AMD Ryzen 9000 (Zen 5) CPU，Windows 10/11
 2. Python 3.8+（自带 tkinter）
 3. 外部 SMU 探测工具链（CurveShaper 写入与 SMN 读取，仓库不附带）——
-   在 `config.py` 里把 `CS_PROBE_DIR` 指向其安装路径
+   通过 `CS_PROBE_DIR` 环境变量（`setx CS_PROBE_DIR "<目录>"`）或项目内
+   `probe-tools/` 文件夹指向它
 4. y-cruncher（推荐）：从
    [numberworld.org](https://www.numberworld.org/y-cruncher/) 下载
    Windows x64 版，解压到项目的 `y-cruncher\` 文件夹。没有它工具会回退
