@@ -8,13 +8,17 @@ Automatic AMD Zen 5 CurveShaper voltage curve optimization tool.
 
 ## Overview
 
-This tool automatically explores the CurveShaper voltage curve space to find the optimal settings for maximum CPU frequency. It uses a systematic optimization approach with stability testing and automatic reboot management.
+This tool automatically explores the CurveShaper voltage curve space to find the optimal settings for maximum CPU frequency. It uses a systematic optimization approach with stability testing and state that persists across reboots (each configuration change requires a manual reboot; the tool resumes automatically afterwards).
+
+**v1.5 — Model-first pipeline (default):** instead of blind per-cell search, the tool first **calibrates** three tables (frequency-voltage, frequency-temperature, voltage-temperature) with one reboot per offset level, then **derives** the optimal grid from stability boundaries and user limits (Max Temp / Max Freq / Max Offset), then **verifies** it with a real post-reboot stress test. Total cost: ~8-14 reboots instead of 100-200. The classic per-cell search remains available in the GUI ("classic search"), and the per-cell engine doubles as the residual-refinement tool ("refine current grid").
 
 ## Features
 
-- ✅ **Fully Automated**: Binary search optimization for each CurveShaper cell
-- ✅ **Reboot Persistence**: State management across reboots
-- ✅ **Stability Testing**: WHEA error detection and stress testing
+- ✅ **Fully Automated**: Binary search optimization for each CurveShaper cell, plus multi-sweep refinement (cells interact)
+- ✅ **Calibration pipeline**: full-spectrum battery per reboot (idle / pinned single-core / all-core y-cruncher / two throttled bands), Tctl temperature telemetry, differential attribution experiment
+- ✅ **Explicit limits**: Max temperature, max frequency and max voltage-offset caps applied during derivation
+- ✅ **Unattended reboot loop**: the tool reboots by itself after each test (cancelable 60s countdown) and relaunches itself at logon via Task Scheduler
+- ✅ **Stability Testing**: y-cruncher (VT3) computation-error detection, WHEA error monitoring, burn.exe fallback
 - ✅ **Frequency Monitoring**: Real-time idle and load frequency measurement
 - ✅ **Safety Mechanisms**: Conservative starting points, validation checks
 - ✅ **Progress Tracking**: Detailed logging and status reporting
@@ -23,14 +27,18 @@ This tool automatically explores the CurveShaper voltage curve space to find the
 
 ```
 auto-curve-shaper/
-├── main.py                  # CLI entry point
-├── gui.py                   # GUI application
-├── optimizer.py             # Core optimization engine
+├── gui.py                   # GUI application (entry point)
+├── optimizer.py             # Orchestration: pipeline phases + classic search
+├── calibration.py           # Full-spectrum battery + attribution experiment
+├── derive.py                # Solver: boundaries + margin + caps -> 5x3 grid
+├── workload.py              # Load battery (affinity workers, powercfg throttle)
+├── temperature_monitor.py   # Tctl telemetry via csprobe SMN read
 ├── state_manager.py         # Reboot persistence and state tracking
 ├── frequency_monitor.py     # CPU frequency measurement
 ├── utils.py                 # Utility functions and csprobe wrapper
 ├── config.py                # Configuration parameters
-├── run.cmd / run.ps1        # CLI launchers
+├── scripts/verify-temp.ps1  # Elevated Tctl sampling self-test
+├── tests/                   # Offline tests (solver, pipeline state machine)
 ├── run-gui.cmd / run-gui.ps1 # GUI launchers
 ├── state.json               # Current optimization state (auto-generated)
 ├── results/                 # Test results (auto-generated)
@@ -39,11 +47,36 @@ auto-curve-shaper/
 
 ## How It Works
 
+### Pipeline (v1.5 default)
+
+1. **Calibrate** — the grid is set to a uniform offset (0, -5, ... -30, one
+   reboot per level). Each session runs the spectrum battery, collecting the
+   three tables as `(offset, regime)` data points:
+   | Window | Load | Frequency band |
+   |---|---|---|
+   | idle | none | Min row (cold boost) |
+   | peak | pinned 1-core busy workers | Max row (single-core boost) |
+   | allcore | y-cruncher VT3 / burn | High row (hot sustained) |
+   | mid | all-core @ PROCTHROTTLEMAX 99% | Mid row (~base clock) |
+   | low | all-core @ PROCTHROTTLEMAX 75% | Low row |
+   Stability gate per level: the all-core y-cruncher verdict + per-window WHEA
+   deltas. A mid-battery crash credits the remaining windows as unstable.
+2. **Derive** — per regime: `chosen = deepest_stable + margin`, clamped by
+   Max Offset, Max Freq (walked back along the F-V curve) and checked against
+   Max Temp. Ineffective throttled windows fall back to the all-core boundary.
+3. **Verify** — the derived grid is rebooted in and stress-tested for real
+   before the run reports completed. Residuals can be squeezed afterwards
+   with "refine current grid" (the per-cell engine).
+
+Optional: **attribution + calibrate** mode prepends a differential
+experiment (one row +30 per reboot vs the offset-0 baseline) to measure the
+regime→row map instead of trusting the built-in default.
+
 ### CurveShaper Grid
 
 The tool optimizes a 5×3 grid of voltage offsets:
 
-| Frequency Point | 0°C | 50°C | 100°C |
+| Frequency Point | -5°C | 50°C | 90°C |
 |-----------------|-----|------|-------|
 | Min             | ±30 | ±30  | ±30   |
 | Low             | ±30 | ±30  | ±30   |
@@ -51,19 +84,26 @@ The tool optimizes a 5×3 grid of voltage offsets:
 | High            | ±30 | ±30  | ±30   |
 | Max             | ±30 | ±30  | ±30   |
 
+(The hardware interface only takes column indices 0/1/2; the temperature
+labels follow SkatterBencher's Curve Shaper measurements.)
+
 ### Optimization Strategy
 
 1. **Baseline Measurement**: Measure performance with all offsets at 0
-2. **Cell-by-Cell Optimization**: Optimize each cell in priority order:
+2. **Sweep 1 — Cell-by-Cell Optimization**: Optimize each cell in priority order:
    - Min row (affects low-temp boost behavior)
    - Max row (affects sustained high-load performance)
    - High, Low, Mid rows
 3. **Binary Search**: For each cell, find the most aggressive stable offset
-4. **Stability Validation**: Each configuration is tested for:
+4. **Sweeps 2+ — Refinement**: CurveShaper cells interact (their influence
+   fields overlap), so after the first full pass every cell is re-searched,
+   seeded from its previous optimum. Sweeps repeat until a full sweep changes
+   nothing (converged) or `MAX_SWEEPS` is reached
+5. **Stability Validation**: Each configuration is tested for:
    - WHEA error absence
    - Stress test stability
    - Frequency measurements under idle and load
-5. **Final Validation**: Best configuration is validated with extended testing
+6. **Final Validation**: Best configuration is validated with extended testing
 
 ### Iteration Cycle
 
@@ -87,10 +127,8 @@ Each optimization iteration:
 
 ### Running the Optimizer
 
-#### Option A: GUI (Recommended)
-
 ```bash
-# Double-click run-gui.cmd or run-gui.ps1
+# Double-click run-gui.cmd (or run-gui.ps1)
 # Or run:
 python gui.py
 ```
@@ -101,27 +139,20 @@ The GUI provides:
 - Live log output
 - Status monitoring
 - Easy start/stop/reset controls
-
-#### Option B: Command Line
-
-```bash
-# Double-click run.cmd or run.ps1
-# Or run:
-python main.py
-```
-
-The CLI tool will:
-- Check for existing optimization state
-- Prompt for confirmation (reboots required)
-- Start optimization process
-- Save state before each reboot
-- Automatically resume after reboot
+- **Auto-continue**: when a run spans reboots, a scheduled task relaunches the
+  GUI at logon (elevated, via Task Scheduler) and auto-resumes after a 10s
+  countdown. The task is removed when the run ends.
+- **Auto-reboot**: after each test iteration the system reboots itself after a
+  cancelable 60s countdown ("Cancel Reboot" button), so the entire run
+  proceeds unattended. Set `AUTO_REBOOT = False` in config.py for manual
+  reboots.
 
 ### After Each Reboot
 
-**GUI**: Simply run `run-gui.cmd` again and click "Start Optimization"
-
-**CLI**: Run `python main.py` again
+Nothing to do — the run is fully unattended: the tool reboots itself, the
+scheduled task relaunches it at logon, and it auto-continues. To intervene:
+click "Cancel Reboot" during a countdown (stay up, reboot manually later), or
+close the window during the post-logon countdown.
 
 The tool will:
 - Detect the post-reboot state
@@ -137,7 +168,6 @@ Edit `config.py` to customize:
 # Safety limits
 INITIAL_OFFSET = -5          # Conservative starting point
 MIN_SAFE_OFFSET = -30        # Maximum undervolt
-STEP_SIZE = 5                # Binary search step size
 
 # Test durations
 STABILITY_TEST_DURATION = 300   # 5 minutes
@@ -298,5 +328,5 @@ MIT License - Use at your own risk
 ---
 
 **Status**: Experimental  
-**Last Updated**: 2026-09-03  
+**Last Updated**: 2026-09-04  
 **Platform**: AMD Zen 5 (Ryzen 9000) on Windows

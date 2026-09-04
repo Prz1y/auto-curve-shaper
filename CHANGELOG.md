@@ -5,6 +5,190 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-09-04
+
+### Added
+- **Model-first calibration pipeline** (`calibrate` mode, the new default in
+  the GUI): instead of blind per-cell binary search, the tool first builds
+  three calibration tables — frequency-voltage, frequency-temperature,
+  voltage-temperature — then derives the optimal 5×3 grid from them.
+  - **Full-spectrum battery** (`calibration.py`): one reboot per uniform
+    offset level (7 levels), each session measuring five frequency bands:
+    idle (no load), peak (affinity-pinned single-core burn workers),
+    all-core (y-cruncher VT3, its verdict doubles as the stability gate),
+    mid/low (all-core load under `PROCTHROTTLEMAX` 99/75% via `powercfg`).
+    Every window records `(offset, regime, freq, temp, stable, whea)` — one
+    row feeds all three tables. Total pipeline cost: ~8-14 reboots versus
+    100-200 for the classic search.
+  - **Temperature telemetry** (`temperature_monitor.py`): Tctl sampled at
+    ~2 Hz via `csprobe read 0x59800` (ZenStates-Core/WinRing0). Requires
+    elevation; persistent failure aborts a calibration run (temperature is
+    load-bearing data there) but only warns in classic mode.
+  - **Differential attribution experiment** (optional, `attribute + calibrate`
+    mode): one CS row at +30 per reboot against the offset-0 baseline builds
+    the regime→row map empirically instead of trusting the built-in default.
+  - **Derivation solver** (`derive.py`, pure logic, offline-testable): per
+    regime takes the deepest stable offset (stability boundary), backs off a
+    safety margin, clamps against user limits — **Max Temp (°C), Max Freq
+    (MHz), Max Offset (+V cap)**, all settable in the GUI — and emits the
+    derived grid plus a per-regime report. Ineffective throttled regimes
+    (frequency never landed below the all-core window) fall back to the
+    all-core boundary. A frequency cap is walked back along the regime's own
+    F-V curve; an unreachable temperature cap is reported as a warning.
+  - **Real final validation**: the converged/derived grid is now actually
+    rebooted in and stress-tested before the run reports "completed" (1.4
+    only staged the final grid). Tracked via `current_phase =
+    "final_validation"` so reboot machinery cannot clobber it.
+- **Crash-resume for calibration**: a session that dies mid-battery keeps
+  status `battery_running`; on the next boot the windows that never ran are
+  credited as UNSTABLE for the staged offset and the sweep continues.
+- **Refine current grid** GUI mode: re-runs the per-cell search over the
+  live grid (the residual engine), for use after a derived grid.
+- `scripts/verify-temp.ps1`: elevated Tctl sampling self-test.
+- `tests/test_derive.py` and `tests/test_pipeline.py`: offline tests for the
+  solver and the full calibrate→derive→verify state machine (mocked hardware,
+  ~8 simulated reboots).
+
+## [1.4.0] - 2026-09-03
+
+### Added
+- **Auto-reboot (fully unattended runs)**: after each test iteration the GUI
+  shows a cancelable 60s countdown ("Cancel Reboot" button), then reboots via
+  `shutdown /r`. Combined with the logon auto-continue task, the entire
+  100-200-reboot optimization loop proceeds unattended. `AUTO_REBOOT = False`
+  restores manual reboots; `AUTO_REBOOT_DELAY` configures the countdown.
+  Stop / Exit / Reset all cancel a pending countdown; exiting during the
+  final 5s shutdown window aborts the OS shutdown.
+
+### Fixed
+- Single-instance lock rewritten as a kernel byte-range lock
+  (msvcrt.locking). The previous PID-in-file + liveness-check scheme gave
+  false positives after a reboot (Windows reuses PIDs, so the relaunched GUI
+  saw the old PID as "alive" and exited with "Already Running" — stalling
+  the unattended loop at exactly that point). Kernel locks are released by
+  the OS when the holder dies, so crashes, hard kills and reboots can never
+  produce a stale or false-positive lock.
+- A second instance blocked by the lock no longer unregisters the autostart
+  task on exit (it would have dismantled the running instance's auto-resume).
+- The post-logon auto-continue no longer pops the "Continue Optimization?"
+  confirmation — that dialog blocked the unattended loop at every reboot.
+  Auto-resume starts silently; confirmations remain for manual clicks only.
+- Load-frequency sampling crashed with TypeError on first use
+  (`_spawn_ycruncher() missing log_path`) — the y-cruncher log-file redirect
+  was applied to the stability path but not the load path. Verified
+  end-to-end on real hardware (load sampling + stability verdict).
+- A "failed" run is now resumable: pressing Start retries from the saved
+  position instead of exiting immediately, so transient failures (power
+  loss, workload hiccups, fixed bugs) don't require manual state surgery.
+- Countdown text (auto-continue / auto-reboot) was being overwritten by the
+  periodic display refresh; both now render through `_update_display` with
+  countdown priority.
+
+## [1.3.0] - 2026-09-03
+
+### Added
+- **y-cruncher stress testing**: stability tests and load-frequency sampling
+  now run y-cruncher (VT3) when installed at `y-cruncher\y-cruncher.exe` —
+  it detects computation errors, which burn.exe (crash-only, still supported
+  as fallback) cannot. Verdict lines ("Running VT3: Passed/Error") are parsed
+  from a log file (piped stdout breaks y-cruncher's time limit); an early
+  exit without completing the window raises MeasurementError instead of
+  silently passing with no load.
+- **Logon auto-continue (Task Scheduler)**: starting an optimization
+  registers a highest-privileges logon task that relaunches the GUI with
+  `--continue`; after each manual reboot the GUI opens by itself and resumes
+  after a 10s abortable countdown. The task is removed when the run
+  completes, is stopped, fails, or the state is reset.
+- Single-instance lock (`gui.lock`) with dead-PID takeover, so a crashed
+  session can't block startup and a logon relaunch can't double-run.
+
+### Fixed
+- `run_command` now decodes subprocess output with `errors='replace'`:
+  localized (GBK) output from schtasks/PowerShell crashed the reader thread
+  on Chinese Windows.
+- Autostart task registration moved from schtasks to the PowerShell
+  ScheduledTasks API (schtasks mangles arguments embedded in /TR).
+
+## [1.2.0] - 2026-09-03
+
+### Added
+- **Multi-sweep refinement**: CurveShaper cells interact (shaper influence
+  fields overlap, per SkatterBencher's measurements), so after the first full
+  pass every cell is re-searched, seeded from its previous optimum, until a
+  full sweep changes nothing (converged) or `MAX_SWEEPS` is reached (default
+  3; set to 1 for v1.1 behavior). A ±2-step convergence deadband keeps
+  binary-search jitter from triggering endless sweeps. `MAX_REBOOT_ATTEMPTS`
+  raised 100 → 350 accordingly. The GUI shows a new "Sweep" progress row.
+- Temperature anchor labels corrected to -5°C / 50°C / 90°C (previously
+  0/50/100°C; display-only — the interface takes column indices).
+- State-machine simulation test (`logs/test_sweeps.py`): runs the full
+  reboot cycle in-memory with faked hardware, covering flat/interaction/
+  migration scenarios.
+
+### Fixed
+- Final validation now applies the **converged grid** (every cell's final
+  optimum) instead of `best_grid` (a best-frequency snapshot that could
+  predate later refinements).
+- Resumed sessions no longer re-seed an exhausted sweep queue (prevented
+  sweep boundaries from ever being reached across reboots).
+- `state.json` writes are now atomic (temp file + `os.replace` + fsync):
+  saving right before a reboot could previously be killed mid-write and
+  corrupt weeks of progress.
+- `test_results` in state.json is capped at the 20 most recent entries
+  (full history stays in the logs); unbounded growth made every save slower
+  across hundreds of reboots.
+- Seeded refinement searches start their search range at the seed instead of
+  re-scanning from 0.
+
+### Changed
+- Optimization report now includes `sweeps_completed` and `converged`.
+
+## [1.1.0] - 2026-09-03
+
+### Changed
+- **GUI-only release**: removed the CLI entry point (`main.py`, `run.cmd`).
+  The GUI (`run-gui.cmd` / `run-gui.ps1`) is now the only interface.
+- Documentation updated accordingly (README, QUICKSTART, CONTRIBUTING,
+  verify-setup scripts).
+
+### Added
+- Python 3.12 verified in the dev environment; all modules compile and
+  import cleanly, with smoke tests for the clocks CSV parser and state
+  round-trip (unknown-field tolerance).
+
+## [1.0.1] - 2026-09-03
+
+### Fixed
+- **Frequency measurement pipeline**: now reads the CSV file produced by
+  clocks-sample.ps1 and converts % Processor Performance to MHz via the base
+  clock. The old stdout regex could never match, so every offset was judged
+  unstable and the optimizer found nothing. Measurement failures now raise
+  MeasurementError and fail the run instead of being mislabeled as instability.
+- **Binary search**: `best_stable_offset` is reset when starting each cell;
+  previously a later cell inherited the previous cell's optimum and could
+  record an unsafe offset.
+- **Hardware/state divergence**: the converged optimum is written back to the
+  hardware cell after each cell completes; previously the last (often
+  unstable) test value lingered during subsequent cells' tests.
+- **cs_set_grid**: writes all cells including zeros so stale test values are
+  always overwritten; previously zero cells were skipped and the final applied
+  grid could differ from the reported best grid.
+- **WHEA detection**: polls are incremental (persisted `last_whea_check`
+  timestamp) and run again after the stress test, so errors are attributed to
+  the correct configuration instead of a fixed 10-minute window.
+- **Load sampling timeout**: added startup margin (previously timed out
+  intermittently because burn ramp-up + PowerShell startup exceeded the
+  timeout).
+- **GUI**: worker threads no longer touch tkinter directly (UI task queue);
+  display follows the optimizer's live state across reboot cycles; Stop/Exit
+  terminate burn.exe so no orphaned workload keeps the CPU pinned.
+- **state.json resilience**: unknown fields are ignored on load, and an
+  unloadable state file is backed up instead of being silently replaced.
+- **verify-setup.ps1**: Python detection no longer reports "[OK] Python
+  found" when python is missing (native command failures don't throw in
+  PowerShell).
+- csprobe invocations now have a 60s timeout instead of hanging forever.
+
 ## [1.0.0] - 2026-09-03
 
 ### Added

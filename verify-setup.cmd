@@ -37,8 +37,8 @@ python -c "import tkinter" >nul 2>&1
 if %errorLevel% == 0 (
     echo [OK] tkinter available
 ) else (
-    echo [WARNING] tkinter not found - GUI mode will not work
-    echo Install tkinter or use CLI mode
+    echo [ERROR] tkinter not found - the GUI will not work
+    echo Reinstall Python and enable the tcl/tk component
 )
 echo.
 
@@ -70,8 +70,7 @@ echo.
 echo Next steps:
 echo   1. If cs-probe path is different, edit config.py
 echo   2. Run with Administrator privileges:
-echo      - GUI: Right-click run-gui.cmd ^> Run as Administrator
-echo      - CLI: Right-click run.cmd ^> Run as Administrator
+echo      Right-click run-gui.cmd ^> Run as Administrator
 echo   3. Read QUICKSTART.md for usage guide
 echo.
 

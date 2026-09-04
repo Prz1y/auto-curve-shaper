@@ -136,7 +136,6 @@ cd auto-curve-shaper
 python -m pytest tests/
 
 # 手动测试
-python main.py  # CLI
 python gui.py   # GUI
 ```
 
@@ -154,7 +153,6 @@ mypy *.py
 
 ```
 auto-curve-shaper/
-├── main.py              # CLI 入口
 ├── gui.py               # GUI 入口
 ├── optimizer.py         # 优化引擎
 ├── state_manager.py     # 状态管理

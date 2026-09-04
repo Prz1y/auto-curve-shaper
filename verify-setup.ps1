@@ -7,12 +7,15 @@ Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Check Python
+# Note: native command failures don't throw in PowerShell, so the check
+# must go through Get-Command / $LASTEXITCODE, not try/catch
 Write-Host "[1/5] Checking Python installation..." -ForegroundColor Yellow
-try {
-    $pythonVersion = python --version 2>&1
+$pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+if ($pythonCmd) {
+    $pythonVersion = & python --version 2>&1
     Write-Host $pythonVersion -ForegroundColor Green
     Write-Host "[OK] Python found" -ForegroundColor Green
-} catch {
+} else {
     Write-Host "[ERROR] Python not found!" -ForegroundColor Red
     Write-Host "Please install Python 3.8 or higher from https://www.python.org/" -ForegroundColor Red
     pause
@@ -36,8 +39,8 @@ $tkinterCheck = python -c "import tkinter" 2>&1
 if ($LASTEXITCODE -eq 0) {
     Write-Host "[OK] tkinter available" -ForegroundColor Green
 } else {
-    Write-Host "[WARNING] tkinter not found - GUI mode will not work" -ForegroundColor Yellow
-    Write-Host "Install tkinter or use CLI mode" -ForegroundColor Yellow
+    Write-Host "[ERROR] tkinter not found - the GUI will not work" -ForegroundColor Red
+    Write-Host "Reinstall Python and enable the tcl/tk component" -ForegroundColor Red
 }
 Write-Host ""
 
@@ -70,8 +73,7 @@ Write-Host ""
 Write-Host "Next steps:" -ForegroundColor White
 Write-Host "  1. If cs-probe path is different, edit config.py" -ForegroundColor White
 Write-Host "  2. Run with Administrator privileges:" -ForegroundColor White
-Write-Host "     - GUI: Right-click run-gui.cmd > Run as Administrator" -ForegroundColor White
-Write-Host "     - CLI: Right-click run.cmd > Run as Administrator" -ForegroundColor White
+Write-Host "     Right-click run-gui.cmd > Run as Administrator" -ForegroundColor White
 Write-Host "  3. Read QUICKSTART.md for usage guide" -ForegroundColor White
 Write-Host ""
 

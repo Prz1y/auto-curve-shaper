@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 import time
 
-from config import CSPROBE_EXE, LOGS_DIR, ROW_NAMES, COL_NAMES
+from config import BASE_DIR, CSPROBE_EXE, LOGS_DIR, ROW_NAMES, COL_NAMES
 
 # Setup logging
 LOGS_DIR.mkdir(exist_ok=True)
@@ -45,10 +45,12 @@ def run_command(cmd: List[str], check: bool = True, capture_output: bool = True,
             check=check,
             capture_output=capture_output,
             text=True,
+            encoding='utf-8',
+            errors='replace',  # schtasks etc. emit localized (GBK) text
             timeout=timeout
         )
         if result.stdout:
-            logger.debug(f"Command output: {result.stdout[:500]}")
+            logger.debug("Command output: %s", result.stdout[:500])
         return result
     except subprocess.CalledProcessError as e:
         logger.error(f"Command failed: {e}")
@@ -84,8 +86,8 @@ def run_csprobe(args: List[str], force: bool = False) -> str:
     cmd = [str(CSPROBE_EXE)] + args
     if force and "-f" not in args:
         cmd.append("-f")
-    
-    result = run_command(cmd, admin=True)
+
+    result = run_command(cmd, admin=True, timeout=60)
     return result.stdout
 
 
@@ -127,10 +129,11 @@ def cs_set_grid(grid: List[List[int]], force: bool = True) -> None:
     for row_idx, row in enumerate(grid):
         logger.info(f"  {ROW_NAMES[row_idx]}: {row}")
     
+    # Write every cell including zeros: a skipped 0 would leave a stale test
+    # value in the hardware register instead of the intended final value
     for row_idx, row in enumerate(grid):
         for col_idx, offset in enumerate(row):
-            if offset != 0:  # Only set non-zero values to save time
-                cs_set_cell(row_idx, col_idx, offset, force=force)
+            cs_set_cell(row_idx, col_idx, offset, force=force)
 
 
 def get_cpu_info() -> Dict[str, Any]:
@@ -193,3 +196,68 @@ def cancel_reboot() -> None:
     """
     logger.info("Cancelling reboot")
     run_command(["shutdown", "/a"], admin=True, check=False)
+
+
+# ---------------------------------------------------------------------------
+# Logon auto-continue via Task Scheduler
+# ---------------------------------------------------------------------------
+
+AUTOSTART_TASK_NAME = "AutoCurveShaper-AutoContinue"
+
+
+def register_autostart_task() -> bool:
+    """Register a logon task that relaunches the GUI elevated with --continue.
+
+    Task Scheduler is the only sanctioned mechanism for auto-elevating at
+    logon (UAC prompts cannot be pre-answered). Must be called from an
+    elevated process. Returns True on success.
+    """
+    launcher = BASE_DIR / "run-gui.cmd"
+    if not launcher.exists():
+        logger.error(f"Cannot register autostart task: {launcher} not found")
+        return False
+
+    # PowerShell ScheduledTasks API: schtasks /TR mangles embedded quotes
+    # around arguments, this path keeps them intact. Register-ScheduledTask
+    # errors are NON-terminating and don't set $LASTEXITCODE, so the success
+    # check must be an explicit try/catch, not the process exit code.
+    ps_script = (
+        "try {{ "
+        "$a = New-ScheduledTaskAction -Execute '{exe}' -Argument '--continue'; "
+        "$t = New-ScheduledTaskTrigger -AtLogOn; "
+        "$p = New-ScheduledTaskPrincipal -UserId $env:USERNAME "
+        "-LogonType Interactive -RunLevel Highest; "
+        "Register-ScheduledTask -TaskName '{name}' -Action $a -Trigger $t "
+        "-Principal $p -Force -ErrorAction Stop | Out-Null; "
+        "exit 0 "
+        "}} catch {{ "
+        "$_.Exception.Message | Write-Error; exit 1 "
+        "}}"
+    ).format(exe=str(launcher), name=AUTOSTART_TASK_NAME)
+
+    result = run_command(
+        ["powershell", "-NoProfile", "-Command", ps_script],
+        check=False, timeout=60
+    )
+    if result.returncode == 0:
+        logger.info(f"Autostart task registered: GUI will relaunch at logon "
+                    f"('{AUTOSTART_TASK_NAME}')")
+        return True
+    logger.error(f"Failed to register autostart task: {(result.stderr or '').strip()}")
+    return False
+
+
+def unregister_autostart_task() -> None:
+    """Remove the logon autostart task (absent task is not an error)"""
+    ps_script = (
+        "Unregister-ScheduledTask -TaskName '{name}' -Confirm:$false "
+        "-ErrorAction SilentlyContinue"
+    ).format(name=AUTOSTART_TASK_NAME)
+    result = run_command(
+        ["powershell", "-NoProfile", "-Command", ps_script],
+        check=False, timeout=60
+    )
+    if result.returncode == 0:
+        logger.info("Autostart task removed")
+    else:
+        logger.debug(f"Autostart task removal: {(result.stderr or '').strip()}")

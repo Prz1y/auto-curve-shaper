@@ -23,5 +23,6 @@ if %errorLevel% == 0 (
 
 :run
 cd /d "%~dp0"
-python gui.py
+REM %* forwards args (the autostart task passes --continue)
+python gui.py %*
 pause
